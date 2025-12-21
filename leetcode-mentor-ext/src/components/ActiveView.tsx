@@ -42,9 +42,11 @@ export const ActiveView = ({ question, hints }: ActiveViewProps) => {
                             animate={{ opacity: 1, x: 0 }}
                             className={cn(
                                 "p-4 rounded-2xl border text-sm leading-relaxed shadow-sm",
-                                hint.type === 'info'
-                                    ? "bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5 text-gray-600 dark:text-gray-300"
-                                    : "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20 text-gray-800 dark:text-amber-100"
+                                hint.type === 'user'
+                                    ? "ml-auto bg-indigo-600 text-white border-transparent"
+                                    : hint.type === 'info'
+                                        ? "bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5 text-gray-600 dark:text-gray-300"
+                                        : "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20 text-gray-800 dark:text-amber-100"
                             )}
                         >
                             {hint.type === 'warning' && (

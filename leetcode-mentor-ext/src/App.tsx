@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContainer, toast } from 'react-toastify';
 import styles from './index.css?inline';
 import toastStyles from 'react-toastify/dist/ReactToastify.css?inline';
+import { useThrottle } from './hooks/useThrottle';
 
 import type { SessionState, Hint } from './types';
 import { Header } from './components/Header';
@@ -10,6 +11,7 @@ import { IdleView } from './components/IdleView';
 import { StartingView } from './components/StartingView';
 import { ActiveView } from './components/ActiveView';
 import { ActiveFooter } from './components/ActiveFooter';
+import { ChatFooter } from './components/ChatFooter';
 import { FloatingTrigger } from './components/FloatingTrigger';
 import { LiveToast } from './components/LiveToast';
 
@@ -24,6 +26,7 @@ function App() {
   const [question, setQuestion] = useState("");
   const [description, setDescription] = useState("");
   const [hints, setHints] = useState<Hint[]>([]);
+  const [isChatMode, setIsChatMode] = useState(false);
   const lastHintIdRef = useRef<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +120,7 @@ function App() {
   const endSession = () => {
     setSessionState('idle');
     setHints([]);
+    setIsChatMode(false);
     // We keep the question populated
   };
 
@@ -147,6 +151,27 @@ function App() {
       type: 'warning',
       timestamp: Date.now()
     }]);
+  };
+
+  const { throttledCallback: throttledRequestHint, isThrottled: isHintThrottled } = useThrottle(handleRequestHint, 10000); // change this to 60000 once testing is done
+
+  const handleSendMessage = (message: string) => {
+    setHints(prev => [...prev, {
+      id: 'user-msg-' + Date.now(),
+      text: message,
+      type: 'user',
+      timestamp: Date.now()
+    }]);
+
+    // Simulate AI response
+    setTimeout(() => {
+      setHints(prev => [...prev, {
+        id: 'ai-response-' + Date.now(),
+        text: "I see you're asking about: " + message + ". Have you checked the constraints?",
+        type: 'info',
+        timestamp: Date.now()
+      }]);
+    }, 1500);
   };
 
   return (
@@ -193,8 +218,21 @@ function App() {
               </div>
 
               {/* Footer */}
-              {sessionState === 'active' && (
-                <ActiveFooter onEndSession={endSession} onRequestHint={handleRequestHint} />
+              {sessionState === 'active' && !isChatMode && (
+                <ActiveFooter
+                  onEndSession={endSession}
+                  onRequestHint={throttledRequestHint}
+                  canEnterChat={hints.length >= 6}
+                  onEnterChat={() => setIsChatMode(true)}
+                  isHintThrottled={isHintThrottled}
+                />
+              )}
+
+              {sessionState === 'active' && isChatMode && (
+                <ChatFooter
+                  onSendMessage={handleSendMessage}
+                  onBack={() => setIsChatMode(false)}
+                />
               )}
             </motion.div>
           )}
