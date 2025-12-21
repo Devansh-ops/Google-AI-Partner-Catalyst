@@ -1,4 +1,4 @@
-import { LuX } from 'react-icons/lu';
+import { LuX, LuSettings } from 'react-icons/lu';
 import type { SessionState } from '../types';
 import { cn } from '../utils';
 import { Button } from './Button';
@@ -6,9 +6,10 @@ import { Button } from './Button';
 interface HeaderProps {
     sessionState: SessionState;
     onClose: () => void;
+    onOpenSettings: () => void;
 }
 
-export const Header = ({ sessionState, onClose }: HeaderProps) => {
+export const Header = ({ sessionState, onClose, onOpenSettings }: HeaderProps) => {
     return (
         <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-white/5 bg-white/50 dark:bg-white/5 backdrop-blur-md sticky top-0 z-10 transition-colors">
             <div className="flex items-center gap-3">
@@ -21,14 +22,25 @@ export const Header = ({ sessionState, onClose }: HeaderProps) => {
                     {sessionState === 'active' ? 'Live Session' : 'Nudge Mentor'}
                 </h2>
             </div>
-            <Button
-                onClick={onClose}
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-            >
-                <LuX className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+                <Button
+                    onClick={onOpenSettings}
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    title="Settings"
+                >
+                    <LuSettings className="w-5 h-5" />
+                </Button>
+                <Button
+                    onClick={onClose}
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full"
+                >
+                    <LuX className="w-5 h-5" />
+                </Button>
+            </div>
         </div>
     );
 };

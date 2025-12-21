@@ -19,7 +19,7 @@ export const ChatFooter = ({ onSendMessage, onBack }: ChatFooterProps) => {
     };
 
     return (
-        <div className="p-4 bg-white dark:bg-[#1a1a1a] border-t border-gray-100 dark:border-white/5">
+        <div className="p-5 bg-white dark:bg-[#1a1a1a] border-t border-gray-100 dark:border-white/5">
             <form
                 onSubmit={handleSubmit}
                 className="flex items-center gap-3 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-2 py-2"

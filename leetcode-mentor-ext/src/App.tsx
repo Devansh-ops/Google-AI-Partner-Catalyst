@@ -5,7 +5,7 @@ import styles from './index.css?inline';
 import toastStyles from 'react-toastify/dist/ReactToastify.css?inline';
 import { useThrottle } from './hooks/useThrottle';
 
-import type { SessionState, Hint } from './types';
+import type { SessionState, Hint, Settings } from './types';
 import { Header } from './components/Header';
 import { IdleView } from './components/IdleView';
 import { StartingView } from './components/StartingView';
@@ -14,6 +14,7 @@ import { ActiveFooter } from './components/ActiveFooter';
 import { ChatFooter } from './components/ChatFooter';
 import { FloatingTrigger } from './components/FloatingTrigger';
 import { LiveToast } from './components/LiveToast';
+import { SettingsView } from './components/SettingsView';
 
 // Custom Event type
 interface ProblemEvent extends CustomEvent {
@@ -27,6 +28,26 @@ function App() {
   const [description, setDescription] = useState("");
   const [hints, setHints] = useState<Hint[]>([]);
   const [isChatMode, setIsChatMode] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings>(() => {
+    try {
+      const saved = localStorage.getItem('leetcode-mentor-settings');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error("Failed to parse settings", e);
+    }
+    return {
+      chatModeEnabled: true,
+      throttleDuration: 60000 // 1 minute default
+    };
+  });
+
+  // Persist settings changes
+  useEffect(() => {
+    localStorage.setItem('leetcode-mentor-settings', JSON.stringify(settings));
+  }, [settings]);
   const lastHintIdRef = useRef<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,7 +174,7 @@ function App() {
     }]);
   };
 
-  const { throttledCallback: throttledRequestHint, isThrottled: isHintThrottled } = useThrottle(handleRequestHint, 10000); // change this to 60000 once testing is done
+  const { throttledCallback: throttledRequestHint, isThrottled: isHintThrottled } = useThrottle(handleRequestHint, settings.throttleDuration);
 
   const handleSendMessage = (message: string) => {
     setHints(prev => [...prev, {
@@ -200,39 +221,55 @@ function App() {
               transition={{ type: "spring", stiffness: 350, damping: 25 }}
               className="w-[400px] h-[600px] origin-bottom-right bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col mb-2"
             >
-              <Header sessionState={sessionState} onClose={() => setIsOpen(false)} />
-
-              {/* Content Area */}
-              <div className="flex-1 overflow-y-auto p-5 scroll-smooth custom-scrollbar relative">
-                {sessionState === 'idle' && (
-                  <IdleView question={question} onStartSession={startSession} />
-                )}
-
-                {sessionState === 'starting' && (
-                  <StartingView />
-                )}
-
-                {sessionState === 'active' && (
-                  <ActiveView question={question} hints={hints} />
-                )}
-              </div>
-
-              {/* Footer */}
-              {sessionState === 'active' && !isChatMode && (
-                <ActiveFooter
-                  onEndSession={endSession}
-                  onRequestHint={throttledRequestHint}
-                  canEnterChat={hints.length >= 6}
-                  onEnterChat={() => setIsChatMode(true)}
-                  isHintThrottled={isHintThrottled}
+              {isSettingsOpen ? (
+                <SettingsView
+                  settings={settings}
+                  onSave={setSettings}
+                  onBack={() => setIsSettingsOpen(false)}
+                  readOnly={sessionState !== 'idle'}
                 />
-              )}
+              ) : (
+                <>
+                  <Header
+                    sessionState={sessionState}
+                    onClose={() => setIsOpen(false)}
+                    onOpenSettings={() => setIsSettingsOpen(true)}
+                  />
 
-              {sessionState === 'active' && isChatMode && (
-                <ChatFooter
-                  onSendMessage={handleSendMessage}
-                  onBack={() => setIsChatMode(false)}
-                />
+                  {/* Content Area */}
+                  <div className="flex-1 overflow-y-auto p-5 scroll-smooth custom-scrollbar relative">
+                    {sessionState === 'idle' && (
+                      <IdleView question={question} onStartSession={startSession} />
+                    )}
+
+                    {sessionState === 'starting' && (
+                      <StartingView />
+                    )}
+
+                    {sessionState === 'active' && (
+                      <ActiveView question={question} hints={hints} />
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  {sessionState === 'active' && !isChatMode && (
+                    <ActiveFooter
+                      onEndSession={endSession}
+                      onRequestHint={throttledRequestHint}
+                      canEnterChat={settings.chatModeEnabled && hints.length >= 6}
+                      onEnterChat={() => setIsChatMode(true)}
+                      isHintThrottled={isHintThrottled}
+                      throttleDuration={settings.throttleDuration}
+                    />
+                  )}
+
+                  {sessionState === 'active' && isChatMode && (
+                    <ChatFooter
+                      onSendMessage={handleSendMessage}
+                      onBack={() => setIsChatMode(false)}
+                    />
+                  )}
+                </>
               )}
             </motion.div>
           )}

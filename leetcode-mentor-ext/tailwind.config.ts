@@ -11,3 +11,6 @@ export default {
   plugins: [],
 } satisfies Config
 
+// Force rebuild
+// Force rebuild 2
+// Force rebuild 3

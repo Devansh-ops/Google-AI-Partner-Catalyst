@@ -6,3 +6,7 @@ export type Hint = {
     type: 'info' | 'warning' | 'success' | 'user';
     timestamp: number;
 };
+export type Settings = {
+    chatModeEnabled: boolean;
+    throttleDuration: number;
+};
