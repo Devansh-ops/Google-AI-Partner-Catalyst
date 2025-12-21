@@ -1,8 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import styles from './index.css?inline';
-import toastStyles from 'react-toastify/dist/ReactToastify.css?inline';
 
 // 1. Inject the Monaco helper
 console.log('[LeetCode Mentor] Content script loaded');
@@ -37,11 +35,6 @@ const container = document.createElement('div');
 // We'll set a basic reset on the container.
 container.style.all = 'initial';
 shadow.appendChild(container);
-
-// Inject styles
-const styleSheet = document.createElement('style');
-styleSheet.textContent = styles + '\n' + toastStyles;
-shadow.appendChild(styleSheet);
 
 ReactDOM.createRoot(container).render(
   <React.StrictMode>

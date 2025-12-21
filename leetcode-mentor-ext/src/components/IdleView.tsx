@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { LuSparkles, LuPlay } from 'react-icons/lu';
+import { Button } from './Button';
 
 interface IdleViewProps {
     question: string;
@@ -35,14 +36,17 @@ export const IdleView = ({ question, onStartSession }: IdleViewProps) => {
             </div>
 
             <div className="w-full space-y-3 px-2">
-                <button
+                <Button
                     onClick={onStartSession}
                     disabled={!question}
-                    className="w-full py-3.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl font-medium text-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+                    fullWidth
+                    variant="primary"
+                    size="lg"
+                    className="shadow-lg"
                 >
                     <LuPlay className="w-4 h-4" />
                     {question ? 'Start Session' : 'Waiting for Problem...'}
-                </button>
+                </Button>
             </div>
         </motion.div>
     );

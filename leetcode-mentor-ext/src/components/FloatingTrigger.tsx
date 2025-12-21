@@ -1,11 +1,6 @@
 import { motion } from 'framer-motion';
 import { LuSparkles, LuX } from 'react-icons/lu';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../utils';
 
 interface FloatingTriggerProps {
     isOpen: boolean;

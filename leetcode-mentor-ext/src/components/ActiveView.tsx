@@ -2,12 +2,7 @@ import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { LuRadio, LuLightbulb } from 'react-icons/lu';
 import type { Hint } from '../types';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../utils';
 
 interface ActiveViewProps {
     question: string;

@@ -1,11 +1,7 @@
 import { LuX } from 'react-icons/lu';
 import type { SessionState } from '../types';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../utils';
+import { Button } from './Button';
 
 interface HeaderProps {
     sessionState: SessionState;
@@ -25,12 +21,14 @@ export const Header = ({ sessionState, onClose }: HeaderProps) => {
                     {sessionState === 'active' ? 'Live Session' : 'Focus Mentor'}
                 </h2>
             </div>
-            <button
+            <Button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500 dark:text-white/60 transition-colors"
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
             >
                 <LuX className="w-5 h-5" />
-            </button>
+            </Button>
         </div>
     );
 };

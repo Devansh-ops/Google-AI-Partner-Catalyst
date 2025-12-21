@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContainer, toast } from 'react-toastify';
+import styles from './index.css?inline';
+import toastStyles from 'react-toastify/dist/ReactToastify.css?inline';
 
 import type { SessionState, Hint } from './types';
 import { Header } from './components/Header';
@@ -148,55 +150,59 @@ function App() {
   };
 
   return (
-    <div ref={containerRef} className="fixed bottom-6 right-6 z-[9999] font-sans flex flex-col items-end gap-3 pointer-events-auto">
-      <ToastContainer
-        position="bottom-center"
-        hideProgressBar={true}
-        newestOnTop
-        closeOnClick={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        className="!bottom-10 !left-1/2 !-translate-x-1/2 !w-auto !p-0"
-        toastClassName="!bg-transparent !shadow-none !p-0 !min-h-0 !mb-0 !rounded-none !border-0"
-      />
+    <>
+      <style>{styles}</style>
+      <style>{toastStyles}</style>
+      <div ref={containerRef} className="fixed bottom-6 right-6 z-[9999] font-sans flex flex-col items-end gap-3 pointer-events-auto">
+        <ToastContainer
+          position="bottom-center"
+          hideProgressBar={true}
+          newestOnTop
+          closeOnClick={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          className="!bottom-10 !left-1/2 !-translate-x-1/2 !w-auto !p-0"
+          toastClassName="!bg-transparent !shadow-none !p-0 !min-h-0 !mb-0 !rounded-none !border-0"
+        />
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10, filter: "blur(10px)" }}
-            animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, scale: 0.95, y: 10, filter: "blur(10px)" }}
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="w-[400px] h-[600px] origin-bottom-right bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col mb-2"
-          >
-            <Header sessionState={sessionState} onClose={() => setIsOpen(false)} />
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10, filter: "blur(10px)" }}
+              animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, scale: 0.95, y: 10, filter: "blur(10px)" }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="w-[400px] h-[600px] origin-bottom-right bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col mb-2"
+            >
+              <Header sessionState={sessionState} onClose={() => setIsOpen(false)} />
 
-            {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-5 scroll-smooth custom-scrollbar relative">
-              {sessionState === 'idle' && (
-                <IdleView question={question} onStartSession={startSession} />
-              )}
+              {/* Content Area */}
+              <div className="flex-1 overflow-y-auto p-5 scroll-smooth custom-scrollbar relative">
+                {sessionState === 'idle' && (
+                  <IdleView question={question} onStartSession={startSession} />
+                )}
 
-              {sessionState === 'starting' && (
-                <StartingView />
-              )}
+                {sessionState === 'starting' && (
+                  <StartingView />
+                )}
 
+                {sessionState === 'active' && (
+                  <ActiveView question={question} hints={hints} />
+                )}
+              </div>
+
+              {/* Footer */}
               {sessionState === 'active' && (
-                <ActiveView question={question} hints={hints} />
+                <ActiveFooter onEndSession={endSession} onRequestHint={handleRequestHint} />
               )}
-            </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* Footer */}
-            {sessionState === 'active' && (
-              <ActiveFooter onEndSession={endSession} onRequestHint={handleRequestHint} />
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <FloatingTrigger isOpen={isOpen} toggleOpen={() => setIsOpen(!isOpen)} />
-    </div>
+        <FloatingTrigger isOpen={isOpen} toggleOpen={() => setIsOpen(!isOpen)} />
+      </div>
+    </>
   );
 }
 
