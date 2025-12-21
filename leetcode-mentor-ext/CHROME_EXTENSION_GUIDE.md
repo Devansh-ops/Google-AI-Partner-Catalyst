@@ -1,8 +1,3 @@
-# Chrome Extension Guide: LeetCode Mentor
-
-This guide is for React developers building the "LeetCode Mentor" extension. It explains the unique architecture required to inject a React app into an existing website (LeetCode) and interact with its internal state (Monaco Editor).
-
----
 
 ## 1. High-Level Architecture
 
