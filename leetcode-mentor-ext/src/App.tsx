@@ -4,6 +4,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import styles from './index.css?inline';
 import toastStyles from 'react-toastify/dist/ReactToastify.css?inline';
 import { useThrottle } from './hooks/useThrottle';
+import { useDomEvent } from './hooks/useDomEvent';
 
 import type { SessionState, Hint, Settings } from './types';
 import { Header } from './components/Header';
@@ -30,18 +31,21 @@ function App() {
   const [isChatMode, setIsChatMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
+    const defaults = {
+      chatModeEnabled: true,
+      throttleDuration: 60000, // 1 minute default
+      elevenLabsTTSEnabled: false
+    };
+
     try {
       const saved = localStorage.getItem('leetcode-mentor-settings');
       if (saved) {
-        return JSON.parse(saved);
+        return { ...defaults, ...JSON.parse(saved) };
       }
     } catch (e) {
       console.error("Failed to parse settings", e);
     }
-    return {
-      chatModeEnabled: true,
-      throttleDuration: 60000 // 1 minute default
-    };
+    return defaults;
   });
 
   // Persist settings changes
@@ -53,23 +57,17 @@ function App() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Listen for problem updates from content script
+  useDomEvent<ProblemEvent>('PROBLEM_UPDATED', (e) => {
+    const detail = e.detail;
+    if (detail) {
+      if (detail.title) setQuestion(detail.title);
+      if (detail.description) setDescription(detail.description);
+    }
+  }, window);
+
+  // Initial request for problem details
   useEffect(() => {
-    const handleProblemUpdate = (e: Event) => {
-      const detail = (e as ProblemEvent).detail;
-      if (detail) {
-        if (detail.title) setQuestion(detail.title);
-        if (detail.description) setDescription(detail.description);
-      }
-    };
-
-    window.addEventListener('PROBLEM_UPDATED', handleProblemUpdate);
-
-    // Initial request for problem details
     window.dispatchEvent(new CustomEvent('GET_PROBLEM_DETAILS'));
-
-    return () => {
-      window.removeEventListener('PROBLEM_UPDATED', handleProblemUpdate);
-    };
   }, []);
 
   // Handle Toast Notifications
@@ -146,22 +144,15 @@ function App() {
   };
 
   // Close popup when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        isOpen &&
-        containerRef.current &&
-        !event.composedPath().includes(containerRef.current)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+  useDomEvent<MouseEvent>('mousedown', (event) => {
+    if (
+      isOpen &&
+      containerRef.current &&
+      !event.composedPath().includes(containerRef.current)
+    ) {
+      setIsOpen(false);
+    }
+  }, document);
 
   const handleRequestHint = () => {
     // Determine the type of hint based entirely on simulation for now

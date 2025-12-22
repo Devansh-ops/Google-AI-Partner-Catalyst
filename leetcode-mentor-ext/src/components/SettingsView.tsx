@@ -56,6 +56,14 @@ export const SettingsView = ({ settings: initialSettings, onSave, onBack, readOn
                     disabled={readOnly}
                 />
 
+                <SettingToggle
+                    label="Enable ElevenLabs TTS (Coming Soon)"
+                    description="Read hints aloud using ElevenLabs AI voices"
+                    checked={false}
+                    onChange={(checked) => handleChange('elevenLabsTTSEnabled', checked)}
+                    disabled={true}
+                />
+
                 <SettingInput
                     label="Hint Throttle Duration"
                     description="Wait time between requesting hints"

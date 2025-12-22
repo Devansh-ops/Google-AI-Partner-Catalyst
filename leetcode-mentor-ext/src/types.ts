@@ -9,4 +9,5 @@ export type Hint = {
 export type Settings = {
     chatModeEnabled: boolean;
     throttleDuration: number;
+    elevenLabsTTSEnabled: boolean;
 };

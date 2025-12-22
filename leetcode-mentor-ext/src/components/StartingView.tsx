@@ -11,7 +11,7 @@ export const StartingView = () => {
                 <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
             </div>
             <p className="text-sm font-medium text-gray-600 dark:text-gray-300 animate-pulse">
-                Initializing Kafka Stream...
+                Connecting to Confluent Cloud...
             </p>
         </motion.div>
     );
