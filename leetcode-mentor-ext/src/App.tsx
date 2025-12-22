@@ -60,6 +60,31 @@ function App() {
   useDomEvent<ProblemEvent>('PROBLEM_UPDATED', (e) => {
     const detail = e.detail;
     if (detail) {
+      // If we are in a session and the problem changes (title is different), we should end the session.
+      if (detail.title && detail.title !== question && sessionState !== 'idle') {
+        setSessionState('idle');
+        setHints([]);
+        setIsChatMode(false);
+        toast(
+          ({ closeToast }) => (
+            <div onClick={() => setIsOpen(true)}>
+              <LiveToast
+                title="Session Update"
+                message="New problem detected. Session reset."
+                type="info"
+                onClose={closeToast}
+              />
+            </div>
+          ),
+          {
+            autoClose: 3000,
+            className: "!bg-transparent !p-0 !border-0 !shadow-none !mb-4",
+            icon: false,
+            closeButton: false,
+          }
+        );
+      }
+
       if (detail.title) setQuestion(detail.title);
       if (detail.description) setDescription(detail.description);
     }
@@ -81,7 +106,12 @@ function App() {
           toast(
             ({ closeToast }) => (
               <div onClick={() => setIsOpen(true)}>
-                <LiveToast hint={latest} onClose={closeToast} />
+                <LiveToast
+                  title="New Insight"
+                  message={latest.text}
+                  type="insight"
+                  onClose={closeToast}
+                />
               </div>
             ),
             {

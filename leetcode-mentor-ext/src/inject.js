@@ -141,10 +141,29 @@
 
   // Poll for title changes (SPA navigation)
   var lastUrl = location.href;
+  var lastTitle = document.title;
+
   setInterval(function () {
     if (location.href !== lastUrl) {
+      console.log('[LeetCode Mentor] URL change detected: ' + lastUrl + ' -> ' + location.href);
       lastUrl = location.href;
-      broadcastProblemDetails();
+
+      // When URL changes, we expect the problem title/description to change too.
+      // We monitor for the title change to ensure we have loaded the new page content.
+      var checks = 0;
+      var checkInterval = setInterval(function () {
+        checks++;
+        // title usually changes in LeetCode navigation
+        if (document.title !== lastTitle || checks > 10) {
+          clearInterval(checkInterval);
+          lastTitle = document.title;
+          console.log('[LeetCode Mentor] Content likely updated (Title match: ' + (document.title === lastTitle) + '). Broadcasting.');
+          broadcastProblemDetails();
+
+          // Extra safety broadcast for description DOM which might lag behind title
+          setTimeout(broadcastProblemDetails, 1500);
+        }
+      }, 500);
     }
   }, 1000);
 
