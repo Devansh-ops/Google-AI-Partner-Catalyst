@@ -23,8 +23,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI
-app = FastAPI(title="LeetCode Mentor API Gateway")
+# Initialize FastAPI with enhanced OpenAPI documentation
+app = FastAPI(
+    title="LeetCode Mentor API Gateway",
+    description="""
+    🧠 **LeetCode AI Mentor API Gateway**
+
+    Real-time WebSocket-based API for providing AI-powered coding hints and mentorship.
+
+    ## Features
+
+    * **WebSocket Connection** - Real-time bidirectional communication
+    * **Event Processing** - Handle code changes and test results
+    * **AI Hints** - Receive intelligent hints from Gemini AI
+    * **Kafka Integration** - Event-driven architecture
+
+    ## WebSocket Events
+
+    ### Sent by Client:
+    - `code_change` - User modified their code
+    - `test_result` - User ran tests (passed/failed)
+
+    ### Received by Client:
+    - `hint` - AI-generated hint from Gemini
+    - `ack` - Event acknowledgment
+    - `error` - Error message
+    """,
+    version="1.0.0",
+    contact={
+        "name": "LeetCode Mentor Team",
+    },
+    license_info={
+        "name": "MIT",
+    },
+)
 
 # CORS for testing
 app.add_middleware(
@@ -40,8 +72,18 @@ ws_manager = WebSocketManager()
 kafka_producer = KafkaProducerService()
 
 
-@app.get("/")
+@app.get("/",
+    summary="Root endpoint",
+    description="Get basic API information and status",
+    tags=["General"],
+    response_description="API status and version information"
+)
 async def root():
+    """
+    Returns basic information about the API Gateway.
+
+    Use this endpoint to verify the service is running.
+    """
     return {
         "status": "ok",
         "service": "API Gateway",
@@ -49,8 +91,20 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get("/health",
+    summary="Health check",
+    description="Check API health and active WebSocket connections",
+    tags=["General"],
+    response_description="Health status and connection count"
+)
 async def health():
+    """
+    Health check endpoint for monitoring.
+
+    Returns:
+    - status: Current health status
+    - active_connections: Number of active WebSocket connections
+    """
     return {
         "status": "healthy",
         "active_connections": len(ws_manager.active_connections)
@@ -59,7 +113,34 @@ async def health():
 
 @app.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    """WebSocket endpoint for client connections"""
+    """
+    WebSocket endpoint for real-time client connections.
+
+    **Parameters:**
+    - `session_id`: Unique identifier for the user session
+
+    **Client → Server Events:**
+    ```json
+    {
+        "event_type": "code_change",
+        "timestamp": "2025-01-01T12:00:00Z",
+        "problem_title": "Two Sum",
+        "code": "def solution()...",
+        "is_correct": false,
+        "test_status": "unknown"
+    }
+    ```
+
+    **Server → Client Responses:**
+    ```json
+    {
+        "type": "hint",
+        "session_id": "session-123",
+        "hint": "Try using a hash map...",
+        "timestamp": "2025-01-01T12:00:01Z"
+    }
+    ```
+    """
     await ws_manager.connect(session_id, websocket)
     
     try:
