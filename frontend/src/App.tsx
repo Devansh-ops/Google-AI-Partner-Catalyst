@@ -22,6 +22,13 @@ interface ProblemEvent extends CustomEvent {
   detail: { title: string; url: string; description: string };
 }
 
+interface GenericLeetCodeEvent extends CustomEvent {
+  detail: {
+    event_type: string;
+    [key: string]: any;
+  };
+}
+
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const [sessionState, setSessionState] = useState<SessionState>('idle');
@@ -89,6 +96,35 @@ function App() {
       if (detail.description) setDescription(detail.description);
     }
   }, window);
+
+  const showEventToast = (eventType: string) => {
+    toast(
+      ({ closeToast }) => (
+        <div onClick={() => setIsOpen(true)}>
+          <LiveToast
+            title="Event Triggered"
+            message={`Event Type: ${eventType}`}
+            type="info"
+            onClose={closeToast}
+          />
+        </div>
+      ),
+      {
+        autoClose: 3000,
+        className: "!bg-transparent !p-0 !border-0 !shadow-none !mb-4",
+        icon: false,
+        closeButton: false,
+      }
+    );
+  };
+
+  // Generic Event Listeners
+  useDomEvent<GenericLeetCodeEvent>('CODE_RESPONSE', (e) => showEventToast(e.detail?.event_type || 'CODE_RESPONSE'), window);
+  useDomEvent<GenericLeetCodeEvent>('TAB_SWITCH', (e) => showEventToast(e.detail?.event_type || 'TAB_SWITCH'), window);
+  //useDomEvent<GenericLeetCodeEvent>('TEST_RUN', (e) => showEventToast(e.detail?.event_type || 'TEST_RUN'), window);
+  //useDomEvent<GenericLeetCodeEvent>('SUBMIT_CODE', (e) => showEventToast(e.detail?.event_type || 'SUBMIT_CODE'), window);
+  useDomEvent<GenericLeetCodeEvent>('CODE_EXECUTION_RESULT', (e) => showEventToast(e.detail?.event_type || 'CODE_EXECUTION_RESULT'), window);
+  useDomEvent<GenericLeetCodeEvent>('PROBLEM_UPDATED', (e) => showEventToast(e.detail?.event_type || 'PROBLEM_UPDATED'), window);
 
   // Initial request for problem details
   useEffect(() => {
