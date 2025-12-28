@@ -1,48 +1,47 @@
 // src/inject.js - This file is loaded directly as a script, so it must be plain JavaScript
 (function () {
-  console.log('[LeetCode Mentor] Inject script loaded! v2.0 - Verifying all methods active...');
+  console.log('[LeetCode Mentor] Inject script loaded! v2.3 - Tab Switch Schema Enforced...');
 
+  var lastDispatchedCode = null;
+  var lastCode = null;
   var codeFound = false;
   var attempts = 0;
   var maxAttempts = 200; // Increased attempts
 
-  function getCodeFromEditor() {
-    attempts++;
-    try {
-      var code = null;
-
-      // Primary Method: Recursive Shadow DOM Search (Most reliable for LeetCode's current structure)
-      function findEditorText(root) {
-        // 1. Check for Monaco (.view-lines)
-        var lines = root.querySelectorAll ? root.querySelectorAll('.view-lines .view-line') : [];
-        if (lines.length > 0) {
-          var textParts = [];
-          for (var j = 0; j < lines.length; j++) {
-            textParts.push(lines[j].innerText || lines[j].textContent);
-          }
-          return textParts.join('\n');
-        }
-
-        // 2. Check for CodeMirror 6 (.cm-content)
-        var cm6 = root.querySelector ? root.querySelector('.cm-content') : null;
-        if (cm6) return cm6.innerText || cm6.textContent;
-
-        // 3. Check for CodeMirror 5 (.CodeMirror)
-        var cm5 = root.querySelector ? root.querySelector('.CodeMirror') : null;
-        if (cm5 && cm5.CodeMirror) return cm5.CodeMirror.getValue();
-
-        // 4. Recursively check children with shadowRoot
-        var children = root.querySelectorAll ? root.querySelectorAll('*') : [];
-        for (var i = 0; i < children.length; i++) {
-          if (children[i].shadowRoot) {
-            var text = findEditorText(children[i].shadowRoot);
-            if (text) return text;
-          }
-        }
-        return null;
+  // Primary Method: Recursive Shadow DOM Search (Most reliable for LeetCode's current structure)
+  function findEditorText(root) {
+    // 1. Check for Monaco (.view-lines)
+    var lines = root.querySelectorAll ? root.querySelectorAll('.view-lines .view-line') : [];
+    if (lines.length > 0) {
+      var textParts = [];
+      for (var j = 0; j < lines.length; j++) {
+        textParts.push(lines[j].innerText || lines[j].textContent);
       }
+      return textParts.join('\n');
+    }
 
-      code = findEditorText(document.body);
+    // 2. Check for CodeMirror 6 (.cm-content)
+    var cm6 = root.querySelector ? root.querySelector('.cm-content') : null;
+    if (cm6) return cm6.innerText || cm6.textContent;
+
+    // 3. Check for CodeMirror 5 (.CodeMirror)
+    var cm5 = root.querySelector ? root.querySelector('.CodeMirror') : null;
+    if (cm5 && cm5.CodeMirror) return cm5.CodeMirror.getValue();
+
+    // 4. Recursively check children with shadowRoot
+    var children = root.querySelectorAll ? root.querySelectorAll('*') : [];
+    for (var i = 0; i < children.length; i++) {
+      if (children[i].shadowRoot) {
+        var text = findEditorText(children[i].shadowRoot);
+        if (text) return text;
+      }
+    }
+    return null;
+  }
+
+  function captureCode() {
+    try {
+      var code = findEditorText(document.body);
 
       // Fallback: Global Monaco (if available and not in Shadow DOM)
       if (!code && window.monaco && window.monaco.editor) {
@@ -52,61 +51,23 @@
           if (model) code = model.getValue();
         }
       }
-
-      if (code && code.trim().length > 0) {
-        if (!codeFound || code !== lastCode) {
-          console.log('[LeetCode Mentor] Code captured (Length: ' + code.length + ')');
-          console.log('[LeetCode Mentor] Code captured: ' + code);
-          codeFound = true;
-          lastCode = code;
-          window.dispatchEvent(new CustomEvent("CODE_RESPONSE", { detail: { code: code } }));
-        }
-        return code;
-      }
-
+      return code;
     } catch (e) {
-      console.error("[LeetCode Mentor] Error retrieving code:", e);
+      console.error("[LeetCode Mentor] Error capturing code:", e);
+      return null;
     }
-    return null;
   }
 
-  var lastCode = null;
-  var intervalId = setInterval(function () {
-    getCodeFromEditor();
-    if (attempts >= maxAttempts) {
-      console.log('[LeetCode Mentor] Max attempts reached.');
-      clearInterval(intervalId);
-    }
-  }, 2000); // Polling every 2s
-
-  // Also listen for manual GET_CODE events
-  window.addEventListener("GET_CODE", function () {
-    var code = getCodeFromEditor();
-    if (code) {
-      window.dispatchEvent(new CustomEvent("CODE_RESPONSE", { detail: { code: code } }));
-    }
-  });
-
-  // --- Problem Title Detection ---
   function getProblemDescription() {
     try {
-      // Method 1: Check for specific data attributes (often used in LeetCode)
       var content = document.querySelector('[data-track-load="description_content"]');
       if (content) return content.innerText;
-
-      // Method 2: Check for meta description (good fallback for summary)
       var meta = document.querySelector('meta[name="description"]');
       if (meta && meta.content) return meta.content;
-
-      // Method 3: Search for common class patterns in the DOM
-      // We look for the main content area.
       var possibleContainers = document.querySelectorAll('div');
       for (var i = 0; i < possibleContainers.length; i++) {
         var el = possibleContainers[i];
-        // Heuristic: Check if class contains 'description' or 'content' and has substantial text
         if ((el.className.includes && (el.className.includes('description') || el.className.includes('content'))) && el.innerText.length > 100) {
-          // This is a bit loose, so we prioritize the data attribute above
-          // ensuring we don't pick up the whole page
           if (el.innerText.includes('Example 1:')) {
             return el.innerText;
           }
@@ -124,13 +85,100 @@
     if (parts.length > 0) {
       title = parts[0];
     }
-
     return {
       title: title,
       url: window.location.href,
       description: getProblemDescription()
     };
   }
+
+  // --- Event Payload Helper (Strictly follows CodeChangeEvent schema) ---
+  function createEventPayload(eventType, extraData) {
+    extraData = extraData || {};
+    var details = getProblemDetails();
+    var currentCode = captureCode() || lastCode || "";
+
+    var payload = {
+      event_type: eventType,
+      timestamp: new Date().toISOString(),
+      session_id: null, // To be filled by extension/backend
+      problem_title: details.title || "Unknown",
+      code: currentCode,
+      error_message: extraData.error_message || null,
+      status: extraData.status || null,
+      is_correct: extraData.is_correct === undefined ? null : extraData.is_correct,
+      test_status: extraData.test_status || null
+    };
+
+    // Log the strictly formatted event
+    console.log('[LeetCode Mentor] Structured Event Log:', JSON.stringify(payload, null, 2));
+
+    return payload;
+  }
+
+  function checkForCodeChange(source) {
+    attempts++;
+    var code = captureCode();
+
+    if (code && code.trim().length > 0) {
+      // Update global lastCode for reference
+      lastCode = code;
+
+      // 1. First Load: Always dispatch
+      if (!codeFound) {
+        console.log('[LeetCode Mentor] Code initially captured.');
+        codeFound = true;
+        lastDispatchedCode = code;
+        window.dispatchEvent(new CustomEvent("CODE_RESPONSE", {
+          detail: createEventPayload("CODE_CHANGE")
+        }));
+        return code;
+      }
+
+      // 2. Updates: Only if source is ENTER_KEY
+      if (code !== lastDispatchedCode) {
+        if (source === 'ENTER_KEY') {
+          console.log('[LeetCode Mentor] Code change detected (Trigger: Enter).');
+          lastDispatchedCode = code;
+          window.dispatchEvent(new CustomEvent("CODE_RESPONSE", {
+            detail: createEventPayload("CODE_CHANGE")
+          }));
+        }
+      }
+      return code;
+    }
+    return null;
+  }
+
+  var intervalId = setInterval(function () {
+    // Polling checks for initial load or existence, but doesn't trigger change events
+    checkForCodeChange('POLL');
+
+    if (attempts >= maxAttempts) {
+      console.log('[LeetCode Mentor] Max polling attempts reached.');
+      clearInterval(intervalId);
+    }
+  }, 2000);
+
+  // Listen for Enter key to trigger code capture
+  // Use capture phase to try and catch before editor swallows
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      setTimeout(function () {
+        checkForCodeChange('ENTER_KEY');
+      }, 300);
+    }
+  }, true);
+
+  // Also listen for manual GET_CODE events (Force dispatch)
+  window.addEventListener("GET_CODE", function () {
+    var code = captureCode();
+    if (code) {
+      window.dispatchEvent(new CustomEvent("CODE_RESPONSE", {
+        detail: createEventPayload("CODE_CHANGE")
+      }));
+    }
+  });
 
   function broadcastProblemDetails() {
     var details = getProblemDetails();
@@ -148,19 +196,14 @@
       console.log('[LeetCode Mentor] URL change detected: ' + lastUrl + ' -> ' + location.href);
       lastUrl = location.href;
 
-      // When URL changes, we expect the problem title/description to change too.
-      // We monitor for the title change to ensure we have loaded the new page content.
       var checks = 0;
       var checkInterval = setInterval(function () {
         checks++;
-        // title usually changes in LeetCode navigation
         if (document.title !== lastTitle || checks > 10) {
           clearInterval(checkInterval);
           lastTitle = document.title;
-          console.log('[LeetCode Mentor] Content likely updated (Title match: ' + (document.title === lastTitle) + '). Broadcasting.');
+          console.log('[LeetCode Mentor] Content likely updated. Broadcasting.');
           broadcastProblemDetails();
-
-          // Extra safety broadcast for description DOM which might lag behind title
           setTimeout(broadcastProblemDetails, 1500);
         }
       }, 500);
@@ -179,13 +222,11 @@
 
   // 1. Tab Switch
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) {
-      console.log('[LeetCode Mentor] Tab switched: Hidden');
-      window.dispatchEvent(new CustomEvent("TAB_SWITCH", { detail: { status: "hidden" } }));
-    } else {
-      console.log('[LeetCode Mentor] Tab switched: Visible');
-      window.dispatchEvent(new CustomEvent("TAB_SWITCH", { detail: { status: "visible" } }));
-    }
+    var status = document.hidden ? "hidden" : "visible";
+    console.log('[LeetCode Mentor] Tab switched: ' + status);
+    window.dispatchEvent(new CustomEvent("TAB_SWITCH", {
+      detail: createEventPayload("TAB_SWITCH", { status: status })
+    }));
   });
 
   // --- Execution Result Monitoring ---
@@ -196,20 +237,17 @@
 
     console.log('[LeetCode Mentor] Monitoring execution result for ' + type + '...');
 
-    // Initial delay to allow UI to update from previous state
     setTimeout(function () {
       var checks = 0;
       resultPoller = setInterval(function () {
         checks++;
 
-        // Timeout
         if (checks > 120) {
           clearInterval(resultPoller);
           console.log('[LeetCode Mentor] Timed out waiting for execution result (60s).');
           return;
         }
 
-        // Debug log every ~2 seconds
         if (checks % 4 === 0) {
           console.log('[LeetCode Mentor] Polling... (Attempt ' + checks + ')');
         }
@@ -218,8 +256,6 @@
         var foundMessage = "";
 
         // --- Status Detection ---
-
-        // 1. Success (Green Text)
         var successNode = document.querySelector('.text-green-500, .text-brand-green, .text-green-s, span[data-e2e-locator="result-header-accepted"]');
         if (successNode) {
           var t = successNode.innerText.trim();
@@ -228,9 +264,7 @@
           }
         }
 
-        // 2. Error (Red Text Header)
         if (!foundStatus) {
-          // We use a broader query for red text but validate content
           var errorNodes = document.querySelectorAll('.text-red-500, .text-brand-red, .text-red-s, .text-red-60, .text-yellow-500, [class*="error-title"]');
           for (var i = 0; i < errorNodes.length; i++) {
             var txt = errorNodes[i].innerText.trim();
@@ -240,26 +274,21 @@
             if (txt.includes('Time Limit Exceeded')) { foundStatus = 'Time Limit Exceeded'; break; }
             if (txt.includes('Output Limit Exceeded')) { foundStatus = 'Output Limit Exceeded'; break; }
             if (txt.includes('Memory Limit Exceeded')) { foundStatus = 'Memory Limit Exceeded'; break; }
-            // Only use generic 'Error' if it looks like a header (short)
             if (txt.includes('Error') && txt.length < 50) { foundStatus = 'Error'; break; }
           }
         }
 
-        // 3. Fallback: Content-based Detection (if no header found)
-        // If we see a big block of red code text, it's likely a compile error
         if (!foundStatus) {
           var detailsNode = document.querySelector('.font-menlo, pre, .whitespace-pre-wrap');
           if (detailsNode && detailsNode.innerText.includes('error:')) {
-            foundStatus = 'Compile Error'; // Infer status from content
+            foundStatus = 'Compile Error';
             foundMessage = detailsNode.innerText;
           }
         }
 
         // --- Message Extraction ---
-
         if (foundStatus && foundStatus !== 'Accepted') {
           if (!foundMessage) {
-            // Search all potential containers, not just the first one
             var candidates = document.querySelectorAll('.font-menlo, pre, .whitespace-pre-wrap, code');
             for (var k = 0; k < candidates.length; k++) {
               var node = candidates[k];
@@ -269,13 +298,10 @@
                 break;
               }
             }
-
-            // Fallback: Check red text containers again if no code block found
             if (!foundMessage) {
               var redNodes = document.querySelectorAll('.text-red-60, .text-brand-red, .text-red-500, .text-red-s');
               for (var j = 0; j < redNodes.length; j++) {
                 var r = redNodes[j];
-                // Skip the header itself
                 if (r.innerText.length > 30 && !r.innerText.includes(foundStatus)) {
                   foundMessage = r.innerText;
                   break;
@@ -287,31 +313,28 @@
 
         if (foundStatus) {
           console.log('[LeetCode Mentor] Result captured: ' + foundStatus);
-          if (foundMessage) {
-            console.log('[LeetCode Mentor] Message captured: ' + foundMessage.substring(0, 100) + '...');
-          } else {
-            console.log('[LeetCode Mentor] No detailed error message found.');
-          }
+          var isCorrect = foundStatus === 'Accepted';
+          var testStatus = isCorrect ? 'passed' : 'failed';
 
           window.dispatchEvent(new CustomEvent("CODE_EXECUTION_RESULT", {
-            detail: {
-              type: type, // 'TEST' or 'SUBMIT'
-              result: foundStatus,
-              errorMessage: foundMessage.substring(0, 2000)
-            }
+            detail: createEventPayload("CODE_EXECUTION_RESULT", {
+              status: foundStatus,
+              error_message: foundMessage || null,
+              is_correct: isCorrect,
+              test_status: testStatus
+            })
           }));
           clearInterval(resultPoller);
         }
 
-      }, 500); // Check every 500ms
-    }, 1000); // Wait 1s before first check to avoid stale results
+      }, 500);
+    }, 1000);
   }
 
-  // 2. Run / Submit Detection (Improved & Debugging)
+  // 2. Run / Submit Detection
   document.addEventListener("click", function (e) {
     var path = e.composedPath ? e.composedPath() : [e.target];
 
-    // Inspect up to 7 levels up
     for (var i = 0; i < Math.min(path.length, 7); i++) {
       var el = path[i];
       if (!el || !el.getAttribute) continue;
@@ -321,53 +344,40 @@
       var testId = el.getAttribute('data-e2e-locator') || el.getAttribute('data-testid') || "";
       var ariaLabel = (el.getAttribute('aria-label') || "").toLowerCase();
 
-      // Strategy A: Explicit Data Attributes
-      if (testId.includes('console-run-button')) {
-        console.log('[LeetCode Mentor] Run button clicked (detected by attribute)');
-        window.dispatchEvent(new CustomEvent("TEST_RUN"));
-        monitorExecutionResult('TEST_RUN');
-        return;
-      }
-      if (testId.includes('console-submit-button')) {
-        console.log('[LeetCode Mentor] Submit button clicked (detected by attribute)');
-        window.dispatchEvent(new CustomEvent("SUBMIT_CODE"));
-        monitorExecutionResult('SUBMIT_CODE');
-        return;
-      }
+      // Detection Logic
+      var isRun = testId.includes('console-run-button') ||
+        lowerText === 'run' || lowerText === 'run code' || ariaLabel === 'run' || ariaLabel.includes('run code');
 
-      // Strategy B: Text & Accessibility
-      // Check for Run
-      if (lowerText === 'run' || lowerText === 'run code' || ariaLabel.includes('run code') || ariaLabel === 'run') {
-        console.log('[LeetCode Mentor] Run button clicked (detected by strict text/aria)');
-        window.dispatchEvent(new CustomEvent("TEST_RUN"));
-        monitorExecutionResult('TEST_RUN');
-        return;
-      }
-      // Broader Run check: contains "Run" and is a button-ish thing
-      var isButtonLike = el.tagName === 'BUTTON' ||
-        el.getAttribute('role') === 'button' ||
-        (el.className && typeof el.className === 'string' && (el.className.toLowerCase().includes('btn') || el.className.toLowerCase().includes('button')));
+      var isSubmit = testId.includes('console-submit-button') ||
+        lowerText === 'submit' || (lowerText.includes('submit') && lowerText.length < 20);
 
-      if (lowerText.includes('run') && isButtonLike) {
-        // Avoid "Runtime Error" or other stats by checking context or length
-        // But keep it broad for now if < 20 chars
-        if (lowerText.length < 20 && !lowerText.includes('error')) {
-          console.log('[LeetCode Mentor] Run button clicked (detected by partial text)');
-          window.dispatchEvent(new CustomEvent("TEST_RUN"));
-          monitorExecutionResult('TEST_RUN');
-          return;
+      // Broader Run check
+      if (!isRun) {
+        var isButtonLike = el.tagName === 'BUTTON' || el.getAttribute('role') === 'button' || (el.className && typeof el.className === 'string' && el.className.includes('btn'));
+        if (lowerText.includes('run') && isButtonLike && lowerText.length < 20 && !lowerText.includes('error')) {
+          isRun = true;
         }
       }
 
-      // Check for Submit
-      if (lowerText === 'submit' || (lowerText.includes('submit') && lowerText.length < 20)) {
-        console.log('[LeetCode Mentor] Submit button clicked (detected by text)');
-        window.dispatchEvent(new CustomEvent("SUBMIT_CODE"));
+      if (isRun) {
+        console.log('[LeetCode Mentor] Run button clicked');
+        window.dispatchEvent(new CustomEvent("TEST_RUN", {
+          detail: createEventPayload("TEST_RUN")
+        }));
+        monitorExecutionResult('TEST_RUN');
+        return;
+      }
+
+      if (isSubmit) {
+        console.log('[LeetCode Mentor] Submit button clicked');
+        window.dispatchEvent(new CustomEvent("SUBMIT_CODE", {
+          detail: createEventPayload("SUBMIT_CODE")
+        }));
         monitorExecutionResult('SUBMIT_CODE');
         return;
       }
     }
   }, true);
 
-  setTimeout(getCodeFromEditor, 1000);
+  setTimeout(checkForCodeChange, 1000, 'POLL');
 })();
