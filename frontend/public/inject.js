@@ -175,5 +175,199 @@
   // Initial broadcast
   setTimeout(broadcastProblemDetails, 2000);
 
+  // --- Event Listeners for Run/Submit and Tab Switch ---
+
+  // 1. Tab Switch
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      console.log('[LeetCode Mentor] Tab switched: Hidden');
+      window.dispatchEvent(new CustomEvent("TAB_SWITCH", { detail: { status: "hidden" } }));
+    } else {
+      console.log('[LeetCode Mentor] Tab switched: Visible');
+      window.dispatchEvent(new CustomEvent("TAB_SWITCH", { detail: { status: "visible" } }));
+    }
+  });
+
+  // --- Execution Result Monitoring ---
+  var resultPoller = null;
+
+  function monitorExecutionResult(type) {
+    if (resultPoller) clearInterval(resultPoller);
+
+    console.log('[LeetCode Mentor] Monitoring execution result for ' + type + '...');
+
+    // Initial delay to allow UI to update from previous state
+    setTimeout(function () {
+      var checks = 0;
+      resultPoller = setInterval(function () {
+        checks++;
+
+        // Timeout
+        if (checks > 120) {
+          clearInterval(resultPoller);
+          console.log('[LeetCode Mentor] Timed out waiting for execution result (60s).');
+          return;
+        }
+
+        // Debug log every ~2 seconds
+        if (checks % 4 === 0) {
+          console.log('[LeetCode Mentor] Polling... (Attempt ' + checks + ')');
+        }
+
+        var foundStatus = null;
+        var foundMessage = "";
+
+        // --- Status Detection ---
+
+        // 1. Success (Green Text)
+        var successNode = document.querySelector('.text-green-500, .text-brand-green, .text-green-s, span[data-e2e-locator="result-header-accepted"]');
+        if (successNode) {
+          var t = successNode.innerText.trim();
+          if (t.includes('Accepted') || t.includes('Success')) {
+            foundStatus = 'Accepted';
+          }
+        }
+
+        // 2. Error (Red Text Header)
+        if (!foundStatus) {
+          // We use a broader query for red text but validate content
+          var errorNodes = document.querySelectorAll('.text-red-500, .text-brand-red, .text-red-s, .text-red-60, .text-yellow-500, [class*="error-title"]');
+          for (var i = 0; i < errorNodes.length; i++) {
+            var txt = errorNodes[i].innerText.trim();
+            if (txt.includes('Wrong Answer')) { foundStatus = 'Wrong Answer'; break; }
+            if (txt.includes('Runtime Error')) { foundStatus = 'Runtime Error'; break; }
+            if (txt.includes('Compile Error')) { foundStatus = 'Compile Error'; break; }
+            if (txt.includes('Time Limit Exceeded')) { foundStatus = 'Time Limit Exceeded'; break; }
+            if (txt.includes('Output Limit Exceeded')) { foundStatus = 'Output Limit Exceeded'; break; }
+            if (txt.includes('Memory Limit Exceeded')) { foundStatus = 'Memory Limit Exceeded'; break; }
+            // Only use generic 'Error' if it looks like a header (short)
+            if (txt.includes('Error') && txt.length < 50) { foundStatus = 'Error'; break; }
+          }
+        }
+
+        // 3. Fallback: Content-based Detection (if no header found)
+        // If we see a big block of red code text, it's likely a compile error
+        if (!foundStatus) {
+          var detailsNode = document.querySelector('.font-menlo, pre, .whitespace-pre-wrap');
+          if (detailsNode && detailsNode.innerText.includes('error:')) {
+            foundStatus = 'Compile Error'; // Infer status from content
+            foundMessage = detailsNode.innerText;
+          }
+        }
+
+        // --- Message Extraction ---
+
+        if (foundStatus && foundStatus !== 'Accepted') {
+          if (!foundMessage) {
+            // Search all potential containers, not just the first one
+            var candidates = document.querySelectorAll('.font-menlo, pre, .whitespace-pre-wrap, code');
+            for (var k = 0; k < candidates.length; k++) {
+              var node = candidates[k];
+              var t = node.innerText;
+              if (t.length > 10 && (t.includes('Line') || t.includes('error') || t.includes('Exception'))) {
+                foundMessage = t;
+                break;
+              }
+            }
+
+            // Fallback: Check red text containers again if no code block found
+            if (!foundMessage) {
+              var redNodes = document.querySelectorAll('.text-red-60, .text-brand-red, .text-red-500, .text-red-s');
+              for (var j = 0; j < redNodes.length; j++) {
+                var r = redNodes[j];
+                // Skip the header itself
+                if (r.innerText.length > 30 && !r.innerText.includes(foundStatus)) {
+                  foundMessage = r.innerText;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (foundStatus) {
+          console.log('[LeetCode Mentor] Result captured: ' + foundStatus);
+          if (foundMessage) {
+            console.log('[LeetCode Mentor] Message captured: ' + foundMessage.substring(0, 100) + '...');
+          } else {
+            console.log('[LeetCode Mentor] No detailed error message found.');
+          }
+
+          window.dispatchEvent(new CustomEvent("CODE_EXECUTION_RESULT", {
+            detail: {
+              type: type, // 'TEST' or 'SUBMIT'
+              result: foundStatus,
+              errorMessage: foundMessage.substring(0, 2000)
+            }
+          }));
+          clearInterval(resultPoller);
+        }
+
+      }, 500); // Check every 500ms
+    }, 1000); // Wait 1s before first check to avoid stale results
+  }
+
+  // 2. Run / Submit Detection (Improved & Debugging)
+  document.addEventListener("click", function (e) {
+    var path = e.composedPath ? e.composedPath() : [e.target];
+
+    // Inspect up to 7 levels up
+    for (var i = 0; i < Math.min(path.length, 7); i++) {
+      var el = path[i];
+      if (!el || !el.getAttribute) continue;
+
+      var text = (el.innerText || el.textContent || "").replace(/\s+/g, ' ').trim();
+      var lowerText = text.toLowerCase();
+      var testId = el.getAttribute('data-e2e-locator') || el.getAttribute('data-testid') || "";
+      var ariaLabel = (el.getAttribute('aria-label') || "").toLowerCase();
+
+      // Strategy A: Explicit Data Attributes
+      if (testId.includes('console-run-button')) {
+        console.log('[LeetCode Mentor] Run button clicked (detected by attribute)');
+        window.dispatchEvent(new CustomEvent("TEST_RUN"));
+        monitorExecutionResult('TEST_RUN');
+        return;
+      }
+      if (testId.includes('console-submit-button')) {
+        console.log('[LeetCode Mentor] Submit button clicked (detected by attribute)');
+        window.dispatchEvent(new CustomEvent("SUBMIT_CODE"));
+        monitorExecutionResult('SUBMIT_CODE');
+        return;
+      }
+
+      // Strategy B: Text & Accessibility
+      // Check for Run
+      if (lowerText === 'run' || lowerText === 'run code' || ariaLabel.includes('run code') || ariaLabel === 'run') {
+        console.log('[LeetCode Mentor] Run button clicked (detected by strict text/aria)');
+        window.dispatchEvent(new CustomEvent("TEST_RUN"));
+        monitorExecutionResult('TEST_RUN');
+        return;
+      }
+      // Broader Run check: contains "Run" and is a button-ish thing
+      var isButtonLike = el.tagName === 'BUTTON' ||
+        el.getAttribute('role') === 'button' ||
+        (el.className && typeof el.className === 'string' && (el.className.toLowerCase().includes('btn') || el.className.toLowerCase().includes('button')));
+
+      if (lowerText.includes('run') && isButtonLike) {
+        // Avoid "Runtime Error" or other stats by checking context or length
+        // But keep it broad for now if < 20 chars
+        if (lowerText.length < 20 && !lowerText.includes('error')) {
+          console.log('[LeetCode Mentor] Run button clicked (detected by partial text)');
+          window.dispatchEvent(new CustomEvent("TEST_RUN"));
+          monitorExecutionResult('TEST_RUN');
+          return;
+        }
+      }
+
+      // Check for Submit
+      if (lowerText === 'submit' || (lowerText.includes('submit') && lowerText.length < 20)) {
+        console.log('[LeetCode Mentor] Submit button clicked (detected by text)');
+        window.dispatchEvent(new CustomEvent("SUBMIT_CODE"));
+        monitorExecutionResult('SUBMIT_CODE');
+        return;
+      }
+    }
+  }, true);
+
   setTimeout(getCodeFromEditor, 1000);
 })();
