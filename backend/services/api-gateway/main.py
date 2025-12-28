@@ -14,7 +14,9 @@ from config import config
 from websocket_manager import WebSocketManager
 from kafka_producer import KafkaProducerService
 from shared.config.kafka_config import get_consumer_config
-from shared.models.event_schemas import CodeChangeEvent
+from shared.config.kafka_config import get_consumer_config
+from shared.models.event_schemas import CodeChangeEvent, ChatMessageEvent
+
 
 # Setup logging
 logging.basicConfig(
@@ -48,6 +50,7 @@ app = FastAPI(
     - `hint` - AI-generated hint from Gemini
     - `ack` - Event acknowledgment
     - `error` - Error message
+    - `chat_response` - AI response to chat message
     """,
     version="1.0.0",
     contact={
@@ -162,10 +165,20 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     "message": "Invalid event format"
                 })
                 continue
+        
             
             # Send to Kafka
+            topic = config.TOPIC_EVENTS_REALTIME
+            if data.get('event_type') == 'chat_message':
+                topic = config.TOPIC_CHAT_EVENTS
+                try:
+                    ChatMessageEvent(**data) # Validate chat event
+                except Exception as e:
+                    logger.error(f"Invalid chat event format: {e}")
+                    continue
+
             kafka_producer.send_event(
-                topic=config.TOPIC_EVENTS_REALTIME,
+                topic=topic,
                 session_id=session_id,
                 event_data=data
             )
@@ -185,11 +198,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
 
 async def consume_hints_from_kafka():
-    """Background task to consume hints from Kafka and deliver via WebSocket"""
+    """Background task to consume hints and chat responses from Kafka and deliver via WebSocket"""
     consumer = Consumer(get_consumer_config('api-gateway-hint-consumer'))
-    consumer.subscribe([config.TOPIC_HINTS_RESPONSES])
+    consumer.subscribe([config.TOPIC_HINTS_RESPONSES, config.TOPIC_CHAT_RESPONSES])
     
-    logger.info("Started consuming hints from Kafka...")
+    logger.info("Started consuming hints and chat responses from Kafka...")
     
     try:
         while True:
@@ -203,14 +216,14 @@ async def consume_hints_from_kafka():
                 logger.error(f"Consumer error: {msg.error()}")
                 continue
             
-            # Parse hint response
-            hint_data = json.loads(msg.value().decode('utf-8'))
-            session_id = hint_data.get('session_id')
+            # Parse hint/chat response
+            response_data = json.loads(msg.value().decode('utf-8'))
+            session_id = response_data.get('session_id')
             
-            logger.info(f"Received hint for session {session_id}")
+            logger.info(f"Received {response_data.get('type', 'message')} for session {session_id}")
             
             # Send to WebSocket
-            await ws_manager.send_message(session_id, hint_data)
+            await ws_manager.send_message(session_id, response_data)
             
             await asyncio.sleep(0.1)
             

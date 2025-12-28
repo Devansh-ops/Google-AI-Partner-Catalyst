@@ -3,22 +3,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class Config:
-    # Server
-    PORT = int(os.getenv('PORT', 8000))
-    HOST = os.getenv('HOST', '0.0.0.0')
-    
     # Kafka
     KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
     KAFKA_API_KEY = os.getenv('KAFKA_API_KEY')
     KAFKA_API_SECRET = os.getenv('KAFKA_API_SECRET')
     
     # Topics
-    TOPIC_EVENTS_REALTIME = 'events.realtime'
-    TOPIC_HINTS_RESPONSES = 'hints.responses'
     TOPIC_CHAT_EVENTS = 'chat.events'
     TOPIC_CHAT_RESPONSES = 'chat.responses'
-
+    
+    # Google
+    GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+    CONSUMER_GROUP_ID = 'chat-service-consumer'
 
 config = Config()

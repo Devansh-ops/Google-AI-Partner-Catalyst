@@ -20,3 +20,20 @@ class HintResponse(BaseModel):
     session_id: str
     hint: str
     timestamp: str
+
+
+class ChatMessageEvent(BaseModel):
+    event_type: str = "chat_message"
+    message: str
+    session_id: str
+    timestamp: str
+    problem_context: Optional[dict] = None # title, description, url, difficulty
+    current_code: Optional[str] = None
+    previous_hints: Optional[list] = None
+
+
+class ChatResponseEvent(BaseModel):
+    type: str = "chat_response"
+    session_id: str
+    message: str
+    timestamp: str
