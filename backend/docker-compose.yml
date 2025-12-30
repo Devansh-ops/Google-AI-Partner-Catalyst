@@ -44,6 +44,18 @@ services:
     networks:
       - leetcode-mentor
 
+  chat-service:
+    build:
+      context: services/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - leetcode-mentor
+
 volumes:
   pattern-processor-state:
     driver: local

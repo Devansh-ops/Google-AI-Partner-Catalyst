@@ -1,16 +1,18 @@
-FROM python:3.10-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
-# Copy shared modules first (context needs to be root of repo)
-COPY backend/shared /app/backend/shared
-
-# Copy service code
-COPY backend/services/chat-service/app /app/backend/services/chat-service/app
+# Copy requirements
+COPY requirements.txt .
 
 # Install dependencies
-WORKDIR /app/backend/services/chat-service/app
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Run service
-CMD ["python", "main.py"]
+# Copy source code
+COPY . .
+
+# Expose port (internal)
+EXPOSE 8000
+
+# Run the service
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
