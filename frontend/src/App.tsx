@@ -5,8 +5,6 @@ import styles from './index.css?inline';
 import toastStyles from 'react-toastify/dist/ReactToastify.css?inline';
 import { useThrottle } from './hooks/useThrottle';
 import { useDomEvent } from './hooks/useDomEvent';
-import { useWebSocket } from './hooks/useWebSocket';
-
 
 import type { SessionState, Hint, Settings } from './types';
 import { Header } from './components/Header';
@@ -71,35 +69,6 @@ function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const latestCodeRef = useRef<string>("");
   const sessionIdRef = useRef<string | null>(null);
-
-  // WebSocket Connection
-  // TODO: Replace with dynamic session ID generation or retrieval
-  const sessionId = useRef(`session-${Date.now()}`).current;
-  const { isConnected, sendMessage, lastMessage } = useWebSocket('ws://localhost:8000/ws', sessionId);
-
-  // Handle incoming WS messages
-  useEffect(() => {
-    if (!lastMessage) return;
-
-    if (lastMessage.type === 'hint') {
-      // ... existing hint handling logic adaptation ...
-      // For now, we reuse the existing simulated hint structure, but real hints come here
-      setHints((prev: Hint[]) => [...prev, {
-        id: `hint-${Date.now()}`,
-        text: lastMessage.hint,
-        type: 'info', // Default to info for now
-        timestamp: Date.now()
-      }]);
-    } else if (lastMessage.type === 'chat_response') {
-      setHints((prev: Hint[]) => [...prev, {
-        id: `ai-${Date.now()}`,
-        text: lastMessage.message,
-        type: 'info',
-        timestamp: Date.now()
-      }]);
-    }
-  }, [lastMessage]);
-
 
   // Listen for problem updates from content script
   useDomEvent<ProblemEvent>('PROBLEM_UPDATED', (e) => {
@@ -236,7 +205,7 @@ function App() {
     const sessionId = self.crypto.randomUUID();
     sessionIdRef.current = sessionId;
 
-    
+
     // Connect to WebSocket
     const ws = new WebSocket(`${import.meta.env.VITE_PUBLIC_HINT_SERVICE_URL}/ws/${sessionId}`);
 
@@ -352,17 +321,16 @@ function App() {
       timestamp: Date.now()
     }]);
 
-    // Send to Backend via WS
-    sendMessage(message, {
-      problem_context: {
-        title: question,
-        description: description,
-        url: window.location.href, // Approximate
-        difficulty: 'Unknown'
-      },
-      current_code: 'def solution(): pass', // Placeholder - would need code extraction logic
-      previous_hints: hints.map((h: Hint) => h.text)
-    });
+    // Simulate AI response
+    setTimeout(() => {
+      setHints(prev => [...prev, {
+        id: 'ai-response-' + Date.now(),
+        text: "I see you're asking about: " + message + ". Have you checked the constraints?",
+        type: 'info',
+        timestamp: Date.now()
+      }]);
+    }, 1500);
+
   };
 
   return (
