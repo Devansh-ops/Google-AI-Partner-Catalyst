@@ -205,7 +205,7 @@ function App() {
     const sessionId = self.crypto.randomUUID();
     sessionIdRef.current = sessionId;
 
-    
+
     // Connect to WebSocket
     const ws = new WebSocket(`${import.meta.env.VITE_PUBLIC_HINT_SERVICE_URL}/ws/${sessionId}`);
 
@@ -330,6 +330,7 @@ function App() {
         timestamp: Date.now()
       }]);
     }, 1500);
+
   };
 
   return (
