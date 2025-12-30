@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { LuLightbulb, LuX, LuInfo } from 'react-icons/lu';
 
 interface LiveToastProps {
@@ -40,9 +42,18 @@ export const LiveToast = ({ title, message, type = 'insight', onClose }: LiveToa
                 <p className={`text-xs font-bold ${titleColor} mb-0.5 uppercase tracking-wide`}>
                     {title || (isInsight ? "New Insight" : "System Update")}
                 </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200 line-clamp-4 leading-snug">
-                    {message}
-                </p>
+                <div className="text-sm text-gray-700 dark:text-gray-200 line-clamp-4 leading-snug prose dark:prose-invert prose-sm max-w-none prose-p:my-0 prose-ul:my-0 prose-li:my-0">
+                    <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            p: ({ children }: { children?: React.ReactNode }) => <span className="block mb-1 last:mb-0">{children}</span>,
+                            a: ({ children }: { children?: React.ReactNode }) => <span className="text-indigo-500 underline">{children}</span>,
+                            code: ({ children }: { children?: React.ReactNode }) => <code className="bg-black/10 dark:bg-white/10 px-1 rounded text-xs font-mono">{children}</code>
+                        }}
+                    >
+                        {message}
+                    </ReactMarkdown>
+                </div>
             </div>
             <button
                 onClick={(e) => {

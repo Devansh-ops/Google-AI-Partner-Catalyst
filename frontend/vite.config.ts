@@ -7,7 +7,7 @@ const manifest = defineManifest({
   name: 'Gemini LeetCode Mentor',
   version: '1.0.0',
   permissions: ['activeTab'],
-  host_permissions: ['http://localhost:*/*'],
+  host_permissions: ['http://localhost:*/*', 'https://leetcodementor.devanshsehgal.com/*'],
   content_scripts: [{
     js: ['src/content.tsx'],
     matches: ['https://leetcode.com/problems/*']

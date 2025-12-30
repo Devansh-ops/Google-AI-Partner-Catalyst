@@ -3,11 +3,13 @@ export type SessionState = 'idle' | 'starting' | 'active';
 export type Hint = {
     id: string;
     text: string;
-    type: 'info' | 'warning' | 'success' | 'user';
+    type: 'info' | 'warning' | 'success' | 'user' | 'loading';
     timestamp: number;
 };
 export type Settings = {
     chatModeEnabled: boolean;
     throttleDuration: number;
     elevenLabsTTSEnabled: boolean;
+    tone: 'Supportive' | 'Rude' | 'Neutral' | 'Teacher';
+    experienceLevel: 'Beginner' | 'Intermediate' | 'Advanced';
 };

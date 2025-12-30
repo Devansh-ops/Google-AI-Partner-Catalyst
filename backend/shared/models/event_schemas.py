@@ -26,6 +26,10 @@ class CodeChangeEvent(BaseModel):
     test_status: Optional[str] = None  # 'success', 'failed', 'timeout'
     error_message: Optional[str] = None  # Error details if failed
 
+    # User preferences
+    tone: Optional[str] = "Supportive"  # e.g., 'Supportive', 'Rude'
+    experience_level: Optional[str] = "Beginner"  # e.g., 'Beginner', 'Intermediate', 'Advanced'
+
 
 class HintResponse(BaseModel):
     """

@@ -2,11 +2,12 @@ version: '3.8'
 
 services:
   api-gateway:
+    container_name: leetcodementor_server
     build:
       context: .
       dockerfile: services/api-gateway/Dockerfile
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - .env
     volumes:
@@ -14,6 +15,7 @@ services:
     restart: unless-stopped
     networks:
       - leetcode-mentor
+      - caddy_shared_net
 
   hint-generator:
     build:
@@ -63,3 +65,5 @@ volumes:
 networks:
   leetcode-mentor:
     driver: bridge
+  caddy_shared_net:
+    external: true

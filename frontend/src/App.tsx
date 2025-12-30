@@ -19,6 +19,7 @@ import { FloatingTrigger } from './components/FloatingTrigger';
 import { LiveToast } from './components/LiveToast';
 import { SettingsView } from './components/SettingsView';
 
+
 // Custom Event type
 interface ProblemEvent extends CustomEvent {
   detail: { title: string; url: string; description: string };
@@ -40,13 +41,16 @@ function App() {
   const [isChatMode, setIsChatMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
-    const defaults = {
+    const defaults: Settings = {
       chatModeEnabled: true,
       throttleDuration: 60000, // 1 minute default
-      elevenLabsTTSEnabled: false
+      elevenLabsTTSEnabled: false,
+      tone: 'Supportive',
+      experienceLevel: 'Beginner'
     };
 
     try {
+      console.log('description: ', description);
       const saved = localStorage.getItem('leetcode-mentor-settings');
       if (saved) {
         return { ...defaults, ...JSON.parse(saved) };
@@ -65,6 +69,8 @@ function App() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const latestCodeRef = useRef<string>("");
+  const sessionIdRef = useRef<string | null>(null);
 
   // WebSocket Connection
   // TODO: Replace with dynamic session ID generation or retrieval
@@ -133,11 +139,21 @@ function App() {
     const detail = e.detail;
     if (!detail) return;
 
-
+    if (detail.code !== undefined) {
+      latestCodeRef.current = detail.code || "";
+    }
 
     // Send to WebSocket if verified
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      let payload = { ...detail };
+      let payload: any = {
+        ...detail,
+        tone: settings.tone || 'Supportive',
+        experience_level: settings.experienceLevel || 'Beginner'
+      };
+
+      if (sessionIdRef.current) {
+        payload.session_id = sessionIdRef.current;
+      }
 
       // Map event types to backend schema (backend/shared/models/event_schemas.py)
       // Valid types: 'CODE_CHANGE', 'TAB_SWITCH', 'HINT_REQUEST', 'TEST_RUN', 'GIVE_UP'
@@ -166,11 +182,13 @@ function App() {
   //useDomEvent<GenericLeetCodeEvent>('TEST_RUN', handleExtensionEvent, window); // inject.js handles this internally and emits CODE_EXECUTION_RESULT later
   //useDomEvent<GenericLeetCodeEvent>('SUBMIT_CODE', handleExtensionEvent, window);
   useDomEvent<GenericLeetCodeEvent>('CODE_EXECUTION_RESULT', handleExtensionEvent, window);
+  useDomEvent<GenericLeetCodeEvent>('GIVE_UP', handleExtensionEvent, window);
   useDomEvent<GenericLeetCodeEvent>('PROBLEM_UPDATED', handleExtensionEvent, window);
 
   // Initial request for problem details
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('GET_PROBLEM_DETAILS'));
+    window.dispatchEvent(new CustomEvent('GET_CODE'));
   }, []);
 
   // Handle Toast Notifications
@@ -216,9 +234,11 @@ function App() {
     setSessionState('starting');
 
     const sessionId = self.crypto.randomUUID();
+    sessionIdRef.current = sessionId;
 
+    
     // Connect to WebSocket
-    const ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+    const ws = new WebSocket(`${import.meta.env.VITE_PUBLIC_HINT_SERVICE_URL}/ws/${sessionId}`);
 
     ws.onopen = () => {
       console.log('WebSocket connected');
@@ -241,12 +261,15 @@ function App() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'hint') {
-          setHints(prev => [...prev, {
-            id: 'hint-' + Date.now(),
-            text: data.hint,
-            type: 'warning',
-            timestamp: Date.now()
-          }]);
+          setHints(prev => {
+            const clean = prev.filter(h => h.type !== 'loading');
+            return [...clean, {
+              id: 'hint-' + Date.now(),
+              text: data.hint,
+              type: 'warning',
+              timestamp: Date.now()
+            }];
+          });
         }
       } catch (e) {
         console.error("Error parsing WS message", e);
@@ -271,6 +294,8 @@ function App() {
       wsRef.current.close();
       wsRef.current = null;
     }
+    sessionIdRef.current = null;
+    latestCodeRef.current = "";
     setSessionState('idle');
     setHints([]);
     setIsChatMode(false);
@@ -294,27 +319,22 @@ function App() {
       const payload = {
         event_type: 'HINT_REQUEST',
         timestamp: new Date().toISOString(),
-        // We can include other details if available in a ref, but schema says optional or handled by backend knowing session context
-        // Ideally we should send current code too if possible, but for now just the event type is key
-        // The pattern-processor or hint-generator likely needs code.
-        // Let's try to grab it if we have it? 
-        // We don't have code in App state. The inject.js sends it via events.
-        // Ideally HINT_REQUEST should be sent via inject.js if we want to capture code at that moment?
-        // But the button is in React side.
-        // We can trigger an event that inject.js listens to?
-        // Or simpler: Just send HINT_REQUEST here. The backend relies on previous code history?
-        // Actually, schema definition: "Pattern-processor sends last 5 iterations". So it uses stored history. 
-        // So just sending HINT_REQUEST is fine.
+        session_id: sessionIdRef.current,
+        problem_title: question,
+        problem_description: description,
+        code: latestCodeRef.current,
+        tone: settings.tone || 'Supportive',
+        experience_level: settings.experienceLevel || 'Beginner'
       };
 
-      console.log('Sending HINT_REQUEST to WS');
+      console.log('Sending HINT_REQUEST to WS', payload);
       wsRef.current.send(JSON.stringify(payload));
 
-      // Add "Requesting hint..." msg locally
+      // Add loading state
       setHints(prev => [...prev, {
-        id: 'req-hint-' + Date.now(),
-        text: "Requesting hint...",
-        type: 'info',
+        id: 'loading-' + Date.now(),
+        text: "",
+        type: 'loading',
         timestamp: Date.now()
       }]);
     } else {

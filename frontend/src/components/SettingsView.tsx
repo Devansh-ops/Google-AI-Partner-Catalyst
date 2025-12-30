@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { SettingsHeader } from './settings/SettingsHeader';
 import { SettingToggle } from './settings/SettingToggle';
 import { SettingInput } from './settings/SettingInput';
+import { SettingSelect } from './settings/SettingSelect';
 
 interface SettingsViewProps {
     settings: Settings;
@@ -72,6 +73,33 @@ export const SettingsView = ({ settings: initialSettings, onSave, onBack, readOn
                     min={0}
                     suffix="seconds"
                     onChange={(value) => handleChange('throttleDuration', Math.max(0, parseInt(value) || 0) * 1000)}
+                    disabled={readOnly}
+                />
+
+                <SettingSelect
+                    label="AI Tone"
+                    description="Choose how the AI should talk to you"
+                    value={settings.tone || 'Supportive'}
+                    options={[
+                        { label: 'Supportive & Encouraging', value: 'Supportive' },
+                        { label: 'Rude & Sarcastic', value: 'Rude' },
+                        { label: 'Neutral & Professional', value: 'Neutral' },
+                        { label: 'Socratic Teacher', value: 'Teacher' },
+                    ]}
+                    onChange={(value) => handleChange('tone', value as any)}
+                    disabled={readOnly}
+                />
+
+                <SettingSelect
+                    label="Experience Level"
+                    description="Tailor hints to your skill level"
+                    value={settings.experienceLevel || 'Beginner'}
+                    options={[
+                        { label: 'Beginner (Explain everything)', value: 'Beginner' },
+                        { label: 'Intermediate (Standard)', value: 'Intermediate' },
+                        { label: 'Advanced (Concise & Expert)', value: 'Advanced' },
+                    ]}
+                    onChange={(value) => handleChange('experienceLevel', value as any)}
                     disabled={readOnly}
                 />
             </div>
