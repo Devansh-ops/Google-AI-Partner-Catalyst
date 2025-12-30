@@ -179,11 +179,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 async def consume_hints_from_kafka():
     """Background task to consume hints from Kafka and deliver via WebSocket"""
     hint_consumer = KafkaConsumerService(
-        group_id='api-gateway-hint-consumer',
+        group_id=config.CONSUMER_GROUP_ID,
         topics=[config.TOPIC_HINTS_RESPONSES]
     )
 
-    logger.info("Started consuming hints from Kafka...")
+    logger.info(f"Started consuming hints from Kafka (consumer group: {config.CONSUMER_GROUP_ID})...")
 
     try:
         while True:
