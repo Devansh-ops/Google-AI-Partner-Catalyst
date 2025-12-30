@@ -103,6 +103,7 @@
       timestamp: new Date().toISOString(),
       session_id: null, // To be filled by extension/backend
       problem_title: details.title || "Unknown",
+      problem_description: details.description || "No description available",
       code: currentCode,
       error_message: extraData.error_message || null,
       status: extraData.status || null,
@@ -194,6 +195,15 @@
   setInterval(function () {
     if (location.href !== lastUrl) {
       console.log('[LeetCode Mentor] URL change detected: ' + lastUrl + ' -> ' + location.href);
+
+      // Check for Solutions tab navigation
+      if (location.href.includes('/solutions/') && !lastUrl.includes('/solutions/')) {
+        console.log('[LeetCode Mentor] User navigated to solutions -> Triggering GIVE_UP');
+        window.dispatchEvent(new CustomEvent("GIVE_UP", {
+          detail: createEventPayload("GIVE_UP")
+        }));
+      }
+
       lastUrl = location.href;
 
       var checks = 0;
@@ -222,11 +232,12 @@
 
   // 1. Tab Switch
   document.addEventListener("visibilitychange", function () {
-    var status = document.hidden ? "hidden" : "visible";
-    console.log('[LeetCode Mentor] Tab switched: ' + status);
-    window.dispatchEvent(new CustomEvent("TAB_SWITCH", {
-      detail: createEventPayload("TAB_SWITCH", { status: status })
-    }));
+    if (document.hidden) {
+      console.log('[LeetCode Mentor] Tab switched: hidden');
+      window.dispatchEvent(new CustomEvent("TAB_SWITCH", {
+        detail: createEventPayload("TAB_SWITCH", { status: "hidden" })
+      }));
+    }
   });
 
   // --- Execution Result Monitoring ---

@@ -32,6 +32,7 @@ class TabSwitchRequest(BaseModel):
     session_id: str
     timestamp: str
     problem_title: Optional[str] = None
+    problem_description: Optional[str] = None
     current_code: Optional[str] = ""
 
 

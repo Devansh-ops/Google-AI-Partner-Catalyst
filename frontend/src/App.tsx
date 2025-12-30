@@ -17,6 +17,7 @@ import { FloatingTrigger } from './components/FloatingTrigger';
 import { LiveToast } from './components/LiveToast';
 import { SettingsView } from './components/SettingsView';
 
+
 // Custom Event type
 interface ProblemEvent extends CustomEvent {
   detail: { title: string; url: string; description: string };
@@ -136,6 +137,7 @@ function App() {
   //useDomEvent<GenericLeetCodeEvent>('TEST_RUN', handleExtensionEvent, window); // inject.js handles this internally and emits CODE_EXECUTION_RESULT later
   //useDomEvent<GenericLeetCodeEvent>('SUBMIT_CODE', handleExtensionEvent, window);
   useDomEvent<GenericLeetCodeEvent>('CODE_EXECUTION_RESULT', handleExtensionEvent, window);
+  useDomEvent<GenericLeetCodeEvent>('GIVE_UP', handleExtensionEvent, window);
   useDomEvent<GenericLeetCodeEvent>('PROBLEM_UPDATED', handleExtensionEvent, window);
 
   // Initial request for problem details
@@ -212,12 +214,15 @@ function App() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'hint') {
-          setHints(prev => [...prev, {
-            id: 'hint-' + Date.now(),
-            text: data.hint,
-            type: 'warning',
-            timestamp: Date.now()
-          }]);
+          setHints(prev => {
+            const clean = prev.filter(h => h.type !== 'loading');
+            return [...clean, {
+              id: 'hint-' + Date.now(),
+              text: data.hint,
+              type: 'warning',
+              timestamp: Date.now()
+            }];
+          });
         }
       } catch (e) {
         console.error("Error parsing WS message", e);
@@ -281,11 +286,11 @@ function App() {
       console.log('Sending HINT_REQUEST to WS');
       wsRef.current.send(JSON.stringify(payload));
 
-      // Add "Requesting hint..." msg locally
+      // Add loading state
       setHints(prev => [...prev, {
-        id: 'req-hint-' + Date.now(),
-        text: "Requesting hint...",
-        type: 'info',
+        id: 'loading-' + Date.now(),
+        text: "",
+        type: 'loading',
         timestamp: Date.now()
       }]);
     } else {

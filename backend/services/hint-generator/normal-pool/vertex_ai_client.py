@@ -55,6 +55,30 @@ class VertexAIClient:
         return "Take a moment to review your approach. Consider the problem constraints and whether your current solution handles all edge cases."
 
 
+def get_style_instructions(event: dict) -> str:
+    """Generate style instructions based on user preferences"""
+    tone = event.get('tone', 'Supportive')
+    level = event.get('experience_level', 'Beginner')
+
+    style_guide = f"\n**User Profile:**\n- Tone Preference: {tone}\n- Experience Level: {level}\n"
+
+    # Tone instructions
+    if str(tone).lower() == 'rude':
+        style_guide += "- Act like a brilliant but impatient senior engineer. Be blunt, sarcastic, and slightly annoyed by mistakes. Don't sugarcoat.\n"
+    else:
+        style_guide += "- Be an encouraging, patient, and positive mentor.\n"
+
+    # Level instructions
+    if str(level).lower() == 'advanced':
+        style_guide += "- Assume deep technical knowledge. Be concise. Focus on edge cases, optimization, and system design implications. Skip the basics.\n"
+    elif str(level).lower() == 'intermediate':
+        style_guide += "- Assume standard competence. Explain complex logic but skip basic syntax explanations.\n"
+    else:  # Beginner
+        style_guide += "- Explain concepts simply and clearly. Avoid unnecessary jargon. Break down complex steps.\n"
+
+    return style_guide
+
+
 def build_prompt(event: dict) -> str:
     """Build prompt for Gemini based on event type
 
@@ -108,7 +132,11 @@ def build_code_change_prompt(event: dict) -> str:
     previous_code = event.get('previous_code', '')
     current_code = event.get('current_code', '')
 
-    prompt = f"""You are an expert coding mentor. A student is working on "{problem_title}" and just made significant changes to their code.
+    style_instructions = get_style_instructions(event)
+    prompt = f"""You are an expert coding mentor acting according to the following profile:
+{style_instructions}
+
+A student is working on "{problem_title}" and just made significant changes to their code.
 
 **Problem:**
 {problem_description}
@@ -140,7 +168,11 @@ def build_tab_switch_prompt(event: dict) -> str:
     problem_title = event.get('problem_title', 'a coding problem')
     current_code = event.get('current_code', '')
 
-    prompt = f"""You are an encouraging coding mentor. A student working on "{problem_title}" just switched tabs, possibly to search for help.
+    style_instructions = get_style_instructions(event)
+    prompt = f"""You are a coding mentor acting according to the following profile:
+{style_instructions}
+
+A student working on "{problem_title}" just switched tabs, possibly to search for help.
 
 **Their Current Code:**
 ```
@@ -175,7 +207,11 @@ def build_hint_request_prompt(event: dict) -> str:
         if error_message and error_message != 'N/A':
             iteration_str += f"- Error: {error_message}\n"
 
-    prompt = f"""You are an expert coding mentor. A student is stuck on "{problem_title}" and requested a hint.
+    style_instructions = get_style_instructions(event)
+    prompt = f"""You are an expert coding mentor acting according to the following profile:
+{style_instructions}
+
+A student is stuck on "{problem_title}" and requested a hint.
 
 **Problem:**
 {problem_description}
@@ -208,9 +244,14 @@ def build_test_run_prompt(event: dict) -> str:
     test_status = event.get('test_status', 'unknown')
     error_message = event.get('error_message', '')
 
+    style_instructions = get_style_instructions(event)
+
     if test_status == 'success':
         # Tests passed - check for optimization
-        prompt = f"""You are an expert coding mentor. A student just successfully solved "{problem_title}"!
+        prompt = f"""You are an expert coding mentor acting according to the following profile:
+{style_instructions}
+
+A student just successfully solved "{problem_title}"!
 
 **Problem:**
 {problem_description}
@@ -230,7 +271,10 @@ def build_test_run_prompt(event: dict) -> str:
 Provide your feedback:"""
     else:
         # Tests failed - help debug
-        prompt = f"""You are an expert coding mentor. A student is solving "{problem_title}" and their tests failed.
+        prompt = f"""You are an expert coding mentor acting according to the following profile:
+{style_instructions}
+
+A student is solving "{problem_title}" and their tests failed.
 
 **Problem:**
 {problem_description}
@@ -260,7 +304,11 @@ def build_give_up_prompt(event: dict) -> str:
     problem_title = event.get('problem_title', 'a coding problem')
     problem_description = event.get('problem_description', '')
 
-    prompt = f"""You are an expert coding mentor. A student has requested the complete solution to "{problem_title}".
+    style_instructions = get_style_instructions(event)
+    prompt = f"""You are an expert coding mentor acting according to the following profile:
+{style_instructions}
+
+A student has requested the complete solution to "{problem_title}".
 
 **Problem:**
 {problem_description}

@@ -158,6 +158,7 @@ class PatternProcessor:
                     'session_id': session_id,
                     'timestamp': event.get('timestamp'),
                     'problem_title': session.problem_title,
+                    'problem_description': session.problem_description,
                     'current_code': session.last_code
                 },
                 timeout=10
