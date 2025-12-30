@@ -10,4 +10,6 @@ export type Settings = {
     chatModeEnabled: boolean;
     throttleDuration: number;
     elevenLabsTTSEnabled: boolean;
+    tone: 'Supportive' | 'Rude' | 'Neutral' | 'Teacher';
+    experienceLevel: 'Beginner' | 'Intermediate' | 'Advanced';
 };

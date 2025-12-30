@@ -39,10 +39,12 @@ function App() {
   const [isChatMode, setIsChatMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
-    const defaults = {
+    const defaults: Settings = {
       chatModeEnabled: true,
       throttleDuration: 60000, // 1 minute default
-      elevenLabsTTSEnabled: false
+      elevenLabsTTSEnabled: false,
+      tone: 'Supportive',
+      experienceLevel: 'Beginner'
     };
 
     try {
@@ -65,6 +67,8 @@ function App() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const latestCodeRef = useRef<string>("");
+  const sessionIdRef = useRef<string | null>(null);
 
   // Listen for problem updates from content script
   useDomEvent<ProblemEvent>('PROBLEM_UPDATED', (e) => {
@@ -104,11 +108,21 @@ function App() {
     const detail = e.detail;
     if (!detail) return;
 
-
+    if (detail.code !== undefined) {
+      latestCodeRef.current = detail.code || "";
+    }
 
     // Send to WebSocket if verified
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      let payload = { ...detail };
+      let payload: any = {
+        ...detail,
+        tone: settings.tone || 'Supportive',
+        experience_level: settings.experienceLevel || 'Beginner'
+      };
+
+      if (sessionIdRef.current) {
+        payload.session_id = sessionIdRef.current;
+      }
 
       // Map event types to backend schema (backend/shared/models/event_schemas.py)
       // Valid types: 'CODE_CHANGE', 'TAB_SWITCH', 'HINT_REQUEST', 'TEST_RUN', 'GIVE_UP'
@@ -143,6 +157,7 @@ function App() {
   // Initial request for problem details
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('GET_PROBLEM_DETAILS'));
+    window.dispatchEvent(new CustomEvent('GET_CODE'));
   }, []);
 
   // Handle Toast Notifications
@@ -188,6 +203,7 @@ function App() {
     setSessionState('starting');
 
     const sessionId = self.crypto.randomUUID();
+    sessionIdRef.current = sessionId;
 
     
     // Connect to WebSocket
@@ -247,6 +263,8 @@ function App() {
       wsRef.current.close();
       wsRef.current = null;
     }
+    sessionIdRef.current = null;
+    latestCodeRef.current = "";
     setSessionState('idle');
     setHints([]);
     setIsChatMode(false);
@@ -270,20 +288,15 @@ function App() {
       const payload = {
         event_type: 'HINT_REQUEST',
         timestamp: new Date().toISOString(),
-        // We can include other details if available in a ref, but schema says optional or handled by backend knowing session context
-        // Ideally we should send current code too if possible, but for now just the event type is key
-        // The pattern-processor or hint-generator likely needs code.
-        // Let's try to grab it if we have it? 
-        // We don't have code in App state. The inject.js sends it via events.
-        // Ideally HINT_REQUEST should be sent via inject.js if we want to capture code at that moment?
-        // But the button is in React side.
-        // We can trigger an event that inject.js listens to?
-        // Or simpler: Just send HINT_REQUEST here. The backend relies on previous code history?
-        // Actually, schema definition: "Pattern-processor sends last 5 iterations". So it uses stored history. 
-        // So just sending HINT_REQUEST is fine.
+        session_id: sessionIdRef.current,
+        problem_title: question,
+        problem_description: description,
+        code: latestCodeRef.current,
+        tone: settings.tone || 'Supportive',
+        experience_level: settings.experienceLevel || 'Beginner'
       };
 
-      console.log('Sending HINT_REQUEST to WS');
+      console.log('Sending HINT_REQUEST to WS', payload);
       wsRef.current.send(JSON.stringify(payload));
 
       // Add loading state
