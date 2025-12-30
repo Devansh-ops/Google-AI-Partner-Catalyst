@@ -313,6 +313,84 @@ function App() {
 
   const { throttledCallback: throttledRequestHint, isThrottled: isHintThrottled } = useThrottle(handleRequestHint, settings.throttleDuration);
 
+  // Chat Service WebSocket
+  const chatWsRef = useRef<WebSocket | null>(null);
+
+  // Connect to Chat Service when Chat Mode is enabled
+  useEffect(() => {
+    if (isChatMode && !chatWsRef.current) {
+      console.log('Connecting to Chat Service...');
+      const chatWsUrl = import.meta.env.VITE_PUBLIC_CHAT_SERVICE_URL || 'ws://localhost:8002/ws/chat';
+      const ws = new WebSocket(chatWsUrl);
+
+      ws.onopen = () => {
+        console.log('Chat WebSocket connected');
+
+        // Send Init Message
+        const initMsg = {
+          type: "init",
+          problem: question,
+          code: latestCodeRef.current || "No code available",
+          hints: hints.map(h => h.text) // Send previous hints as context if needed, or maybe empty
+        };
+        ws.send(JSON.stringify(initMsg));
+        console.log('> Sent Init to Chat Service:', initMsg);
+
+        setHints(prev => [...prev, {
+          id: 'chat-connected-' + Date.now(),
+          text: "Connected to AI Chat Assistant.",
+          type: 'info',
+          timestamp: Date.now()
+        }]);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('< Received from Chat Service:', data);
+
+          if (data.type === 'response') {
+            setHints(prev => {
+              // Remove any loading indicators specifically for chat if we implemented them
+              // For now just append the response
+              return [...prev, {
+                id: 'ai-response-' + Date.now(),
+                text: data.content,
+                type: 'info', // Or a specific 'ai' type if we had one, 'info' maps to blue bubble usually
+                timestamp: Date.now()
+              }];
+            });
+          }
+        } catch (e) {
+          console.error("Error parsing Chat WS message", e);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('Chat WebSocket error:', error);
+        toast.error("Failed to connect to chat service");
+      };
+
+      ws.onclose = () => {
+        console.log('Chat WebSocket disconnected');
+        chatWsRef.current = null;
+      };
+
+      chatWsRef.current = ws;
+    } else if (!isChatMode && chatWsRef.current) {
+      // Disconnect when exiting chat mode
+      chatWsRef.current.close();
+      chatWsRef.current = null;
+    }
+
+    return () => {
+      if (chatWsRef.current) {
+        chatWsRef.current.close();
+        chatWsRef.current = null;
+      }
+    };
+  }, [isChatMode, question]); // Re-connect if question changes? Maybe just keep it simple for now.
+
   const handleSendMessage = (message: string) => {
     setHints(prev => [...prev, {
       id: 'user-msg-' + Date.now(),
@@ -321,16 +399,17 @@ function App() {
       timestamp: Date.now()
     }]);
 
-    // Simulate AI response
-    setTimeout(() => {
-      setHints(prev => [...prev, {
-        id: 'ai-response-' + Date.now(),
-        text: "I see you're asking about: " + message + ". Have you checked the constraints?",
-        type: 'info',
-        timestamp: Date.now()
-      }]);
-    }, 1500);
-
+    if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
+      const msgPayload = {
+        type: "message",
+        content: message
+      };
+      chatWsRef.current.send(JSON.stringify(msgPayload));
+      console.log('> Sent Message to Chat Service:', msgPayload);
+    } else {
+      toast.error("Chat service not connected.");
+      // Optionally try to reconnect?
+    }
   };
 
   return (
