@@ -15,91 +15,80 @@ class VertexAIClient:
         )
         self.model = GenerativeModel(config.VERTEX_AI_MODEL)
         logger.info(f"Vertex AI initialized with model {config.VERTEX_AI_MODEL}")
-    
-    def generate_hint(self, prompt: str) -> str:
-        """Generate hint using Gemini"""
+
+    def generate_hint_with_tokens(self, prompt: str, max_tokens: int = 200) -> str:
+        """Generate hint using Gemini with custom token limit
+
+        Args:
+            prompt: The prompt to send to Gemini
+            max_tokens: Maximum number of output tokens
+        """
         try:
-            logger.info("Calling Gemini API...")
-            
+            logger.info(f"Calling Gemini API with max_tokens={max_tokens}...")
+
             response = self.model.generate_content(
                 prompt,
                 generation_config={
                     "temperature": 0.7,
                     "top_p": 0.9,
                     "top_k": 40,
-                    "max_output_tokens": 200,
+                    "max_output_tokens": max_tokens,
                 }
             )
-            
+
             hint_text = response.text.strip()
             logger.info(f"Gemini response received: {hint_text[:100]}...")
-            
+
             # Validate hint quality
             if len(hint_text) < 20:
                 logger.warning("Hint too short, using fallback")
                 return self._get_fallback_hint()
-            
-            if "def " in hint_text or "function" in hint_text.lower():
-                logger.warning("Hint contains code, regenerating...")
-                # Try again with stricter instruction
-                prompt += "\n\nIMPORTANT: Do NOT write any code. Only provide conceptual guidance in 2-3 sentences."
-                response = self.model.generate_content(
-                    prompt,
-                    generation_config={
-                        "temperature": 0.7,
-                        "max_output_tokens": 200,
-                    }
-                )
-                hint_text = response.text.strip()
-            
+
             return hint_text
-            
+
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
             return self._get_fallback_hint()
-    
+
     def _get_fallback_hint(self) -> str:
         """Fallback hint when API fails"""
         return "Take a moment to review your approach. Consider the problem constraints and whether your current solution handles all edge cases."
 
 
 def build_prompt(event: dict) -> str:
-    """Build prompt for Gemini based on event"""
+    """Build prompt for Gemini based on event type
+
+    Handles 5 event types:
+    - CODE_CHANGE: Compare previous/current code and suggest improvements
+    - TAB_SWITCH: Quick encouragement when user switches tabs
+    - HINT_REQUEST: Analyze multiple iterations and provide targeted hint
+    - TEST_RUN: Check test status and provide appropriate feedback
+    - GIVE_UP: Provide full solution with brute force, good, and best approaches
+    """
     event_type = event.get('event_type', 'unknown')
-    code = event.get('code', '')
-    problem_title = event.get('problem_title', 'a coding problem')
-    error_message = event.get('error_message', '')
-    is_correct = event.get('is_correct', False)
-    test_status = event.get('test_status', 'unknown')
 
-    # Handle correct solutions
-    if is_correct or test_status == 'passed' or (event_type == 'test_result' and not error_message):
-        prompt = f"""You are a helpful coding mentor. A user just successfully solved "{problem_title}"!
-
-Their working code:
-```
-{code}
-```
-
-Provide a brief, enthusiastic congratulatory message (1-2 sentences) celebrating their success. Be genuine and encouraging. Do NOT suggest improvements or ask them to optimize - they've solved it correctly!
-"""
-    # Handle test failures with error messages
-    elif event_type == 'test_result' and error_message:
-        prompt = f"""You are a helpful coding mentor. A user is solving "{problem_title}" and encountered an error.
-
-Their code:
-```
-{code}
-```
-
-Error message:
-{error_message}
-
-Provide a brief, encouraging hint (2-3 sentences) that guides them toward fixing the issue WITHOUT giving them the complete solution. Focus on helping them understand what went wrong and point them in the right direction.
-"""
-    # Handle general progress/working state
+    # Route to appropriate prompt builder
+    if event_type == 'CODE_CHANGE':
+        return build_code_change_prompt(event)
+    elif event_type == 'TAB_SWITCH':
+        return build_tab_switch_prompt(event)
+    elif event_type == 'HINT_REQUEST':
+        return build_hint_request_prompt(event)
+    elif event_type == 'TEST_RUN':
+        return build_test_run_prompt(event)
+    elif event_type == 'GIVE_UP':
+        return build_give_up_prompt(event)
     else:
-        prompt = f"""You are a helpful coding mentor. A user is working on "{problem_title}".
+        logger.warning(f"Unknown event type: {event_type}")
+        return build_fallback_prompt(event)
+
+
+def build_fallback_prompt(event: dict) -> str:
+    """Fallback prompt for unknown event types"""
+    code = event.get('code', event.get('current_code', ''))
+    problem_title = event.get('problem_title', 'a coding problem')
+
+    prompt = f"""You are a helpful coding mentor. A user is working on "{problem_title}".
 
 Their current code:
 ```
@@ -108,5 +97,196 @@ Their current code:
 
 Provide a brief, encouraging hint (1-2 sentences) to help them make progress. Be supportive and guide them without giving away the solution.
 """
+
+    return prompt
+
+
+def build_code_change_prompt(event: dict) -> str:
+    """Build prompt for CODE_CHANGE event - compare previous and current code"""
+    problem_title = event.get('problem_title', 'a coding problem')
+    problem_description = event.get('problem_description', '')
+    previous_code = event.get('previous_code', '')
+    current_code = event.get('current_code', '')
+
+    prompt = f"""You are an expert coding mentor. A student is working on "{problem_title}" and just made significant changes to their code.
+
+**Problem:**
+{problem_description}
+
+**Previous Code:**
+```
+{previous_code}
+```
+
+**Current Code:**
+```
+{current_code}
+```
+
+**Instructions:**
+- Analyze what changed between the two versions
+- If the change is moving in the right direction, provide brief encouragement (1-2 sentences)
+- If the change introduces issues or moves away from the solution, provide a gentle hint (2-3 sentences)
+- Do NOT provide code - only conceptual guidance
+- Be supportive and constructive
+
+Provide your feedback:"""
+
+    return prompt
+
+
+def build_tab_switch_prompt(event: dict) -> str:
+    """Build prompt for TAB_SWITCH event - quick encouragement"""
+    problem_title = event.get('problem_title', 'a coding problem')
+    current_code = event.get('current_code', '')
+
+    prompt = f"""You are an encouraging coding mentor. A student working on "{problem_title}" just switched tabs, possibly to search for help.
+
+**Their Current Code:**
+```
+{current_code}
+```
+
+**Instructions:**
+- Provide a brief, encouraging message (1-2 sentences)
+- Gently remind them that solving it themselves builds stronger skills
+- Be supportive, not preachy
+- Don't provide specific hints about the problem
+
+Provide your encouragement:"""
+
+    return prompt
+
+
+def build_hint_request_prompt(event: dict) -> str:
+    """Build prompt for HINT_REQUEST event - analyze multiple iterations"""
+    problem_title = event.get('problem_title', 'a coding problem')
+    problem_description = event.get('problem_description', '')
+    current_code = event.get('current_code', '')
+    iterations = event.get('iterations', [])
+
+    # Build iteration history string
+    iteration_str = ""
+    for i, iteration in enumerate(iterations, 1):
+        test_status = iteration.get('test_status', 'unknown')
+        error_message = iteration.get('error_message', 'N/A')
+        iteration_str += f"\n**Iteration {i}:**\n"
+        iteration_str += f"- Test Status: {test_status}\n"
+        if error_message and error_message != 'N/A':
+            iteration_str += f"- Error: {error_message}\n"
+
+    prompt = f"""You are an expert coding mentor. A student is stuck on "{problem_title}" and requested a hint.
+
+**Problem:**
+{problem_description}
+
+**Their Progress (Last {len(iterations)} iterations):**
+{iteration_str}
+
+**Current Code:**
+```
+{current_code}
+```
+
+**Instructions:**
+- Analyze their iterations to understand what they've tried
+- Identify the pattern in their mistakes or stuck point
+- Provide a helpful hint (2-3 sentences) that guides them forward
+- Do NOT give the complete solution
+- Focus on the key insight they're missing
+
+Provide your hint:"""
+
+    return prompt
+
+
+def build_test_run_prompt(event: dict) -> str:
+    """Build prompt for TEST_RUN event - provide feedback based on test results"""
+    problem_title = event.get('problem_title', 'a coding problem')
+    problem_description = event.get('problem_description', '')
+    code = event.get('code', '')
+    test_status = event.get('test_status', 'unknown')
+    error_message = event.get('error_message', '')
+
+    if test_status == 'success':
+        # Tests passed - check for optimization
+        prompt = f"""You are an expert coding mentor. A student just successfully solved "{problem_title}"!
+
+**Problem:**
+{problem_description}
+
+**Their Working Code:**
+```
+{code}
+```
+
+**Instructions:**
+- Start with genuine congratulations (1 sentence)
+- Quickly analyze if the code is optimized (time/space complexity)
+- If optimization is possible, provide a brief hint (1-2 sentences) about what could be improved
+- If already optimal, just congratulate them enthusiastically
+- Be encouraging and positive
+
+Provide your feedback:"""
+    else:
+        # Tests failed - help debug
+        prompt = f"""You are an expert coding mentor. A student is solving "{problem_title}" and their tests failed.
+
+**Problem:**
+{problem_description}
+
+**Their Code:**
+```
+{code}
+```
+
+**Test Status:** {test_status}
+**Error Message:**
+{error_message}
+
+**Instructions:**
+- Analyze where the code is failing based on the error
+- Provide a helpful hint (2-3 sentences) on where they're going wrong
+- Point them toward the correction WITHOUT giving the solution
+- Be encouraging and supportive
+
+Provide your hint:"""
+
+    return prompt
+
+
+def build_give_up_prompt(event: dict) -> str:
+    """Build prompt for GIVE_UP event - provide complete solution with multiple approaches"""
+    problem_title = event.get('problem_title', 'a coding problem')
+    problem_description = event.get('problem_description', '')
+
+    prompt = f"""You are an expert coding mentor. A student has requested the complete solution to "{problem_title}".
+
+**Problem:**
+{problem_description}
+
+**Instructions:**
+Provide a comprehensive solution with THREE approaches:
+
+1. **Brute Force Approach:**
+   - Explain the most straightforward solution
+   - Provide complete working code
+   - Mention time/space complexity
+
+2. **Good Approach:**
+   - Explain a more optimized solution
+   - Provide complete working code
+   - Mention time/space complexity
+
+3. **Best Approach:**
+   - Explain the optimal solution
+   - Provide complete working code
+   - Mention time/space complexity
+   - Explain why this is the best approach
+
+**Format:**
+Use clear headings and well-commented code. Be educational and thorough. This is a learning opportunity.
+
+Provide the complete solution:"""
 
     return prompt

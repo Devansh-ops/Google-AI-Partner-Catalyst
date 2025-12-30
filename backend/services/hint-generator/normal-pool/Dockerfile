@@ -14,4 +14,4 @@ COPY services/hint-generator/normal-pool/ .
 # Service account key will be mounted as volume
 # or set via environment variable
 
-CMD ["python", "main.py"]
+CMD ["python", "start.py"]

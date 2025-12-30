@@ -29,6 +29,25 @@ services:
     networks:
       - leetcode-mentor
 
+  pattern-processor:
+    build:
+      context: .
+      dockerfile: services/pattern-processor/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./vertex-ai-key.json:/app/vertex-ai-key.json
+      - pattern-processor-state:/app/state
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    networks:
+      - leetcode-mentor
+
+volumes:
+  pattern-processor-state:
+    driver: local
+
 networks:
   leetcode-mentor:
     driver: bridge

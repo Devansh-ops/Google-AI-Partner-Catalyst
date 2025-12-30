@@ -3,7 +3,6 @@ import logging
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from confluent_kafka import Consumer, KafkaException
 import sys
 import os
 
@@ -12,11 +11,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 from config import config
 from websocket_manager import WebSocketManager
-from kafka_producer import KafkaProducerService
-from shared.config.kafka_config import get_consumer_config
-from shared.config.kafka_config import get_consumer_config
-from shared.models.event_schemas import CodeChangeEvent, ChatMessageEvent
-
+from shared.services import KafkaProducerService, KafkaConsumerService
+from shared.models.event_schemas import CodeChangeEvent
 
 # Setup logging
 logging.basicConfig(
@@ -72,7 +68,7 @@ app.add_middleware(
 
 # Initialize services
 ws_manager = WebSocketManager()
-kafka_producer = KafkaProducerService()
+kafka_producer = KafkaProducerService(client_id='api-gateway-producer')
 
 
 @app.get("/",
@@ -152,36 +148,20 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             data = await websocket.receive_json()
             logger.info(f"Received event from {session_id}: {data.get('event_type')}")
             
-            # Add session_id to event
+            # Add session_id and routing info to event
             data['session_id'] = session_id
-            
-            # Validate event (basic validation)
-            try:
-                event = CodeChangeEvent(**data)
-            except Exception as e:
-                logger.error(f"Invalid event format: {e}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Invalid event format"
-                })
-                continue
-        
-            
-            # Send to Kafka
-            topic = config.TOPIC_EVENTS_REALTIME
-            if data.get('event_type') == 'chat_message':
-                topic = config.TOPIC_CHAT_EVENTS
-                try:
-                    ChatMessageEvent(**data) # Validate chat event
-                except Exception as e:
-                    logger.error(f"Invalid chat event format: {e}")
-                    continue
+            data['message_for'] = 'pattern-processor'  # Route to pattern-processor first
 
+            event_type = data.get('event_type')
+
+            # Send all events to single topic to minimize Kafka partition costs
+            # Pattern-processor will filter by message_for='pattern-processor'
             kafka_producer.send_event(
-                topic=topic,
+                topic=config.TOPIC_EVENTS,
                 session_id=session_id,
                 event_data=data
             )
+            logger.info(f"Sent {event_type} event to {config.TOPIC_EVENTS} (for pattern-processor)")
             
             # Acknowledge receipt
             await websocket.send_json({
@@ -198,39 +178,41 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
 
 async def consume_hints_from_kafka():
-    """Background task to consume hints and chat responses from Kafka and deliver via WebSocket"""
-    consumer = Consumer(get_consumer_config('api-gateway-hint-consumer'))
-    consumer.subscribe([config.TOPIC_HINTS_RESPONSES, config.TOPIC_CHAT_RESPONSES])
-    
-    logger.info("Started consuming hints and chat responses from Kafka...")
-    
+    """Background task to consume hints from Kafka and deliver via WebSocket"""
+    hint_consumer = KafkaConsumerService(
+        group_id=config.CONSUMER_GROUP_ID,
+        topics=[config.TOPIC_HINTS_RESPONSES]
+    )
+
+    logger.info(f"Started consuming hints from Kafka (consumer group: {config.CONSUMER_GROUP_ID})...")
+
     try:
         while True:
-            msg = consumer.poll(timeout=1.0)
-            
+            msg = hint_consumer.poll(timeout=1.0)
+
             if msg is None:
                 await asyncio.sleep(0.1)
                 continue
-            
+
             if msg.error():
                 logger.error(f"Consumer error: {msg.error()}")
                 continue
-            
-            # Parse hint/chat response
-            response_data = json.loads(msg.value().decode('utf-8'))
-            session_id = response_data.get('session_id')
-            
-            logger.info(f"Received {response_data.get('type', 'message')} for session {session_id}")
-            
+
+            # Parse hint response
+            hint_data = json.loads(msg.value().decode('utf-8'))
+            session_id = hint_data.get('session_id')
+
+            logger.info(f"Received hint for session {session_id}")
+
             # Send to WebSocket
-            await ws_manager.send_message(session_id, response_data)
-            
+            await ws_manager.send_message(session_id, hint_data)
+
             await asyncio.sleep(0.1)
-            
+
     except Exception as e:
         logger.error(f"Kafka consumer error: {e}")
     finally:
-        consumer.close()
+        hint_consumer.close()
 
 
 @app.on_event("startup")
