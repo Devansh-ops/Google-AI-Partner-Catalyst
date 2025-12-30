@@ -45,6 +45,7 @@ function App() {
     };
 
     try {
+      console.log('description: ', description);
       const saved = localStorage.getItem('leetcode-mentor-settings');
       if (saved) {
         return { ...defaults, ...JSON.parse(saved) };
@@ -186,8 +187,9 @@ function App() {
 
     const sessionId = self.crypto.randomUUID();
 
+    
     // Connect to WebSocket
-    const ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+    const ws = new WebSocket(`wss://leetcodementor.devanshsehgal.com/ws/${sessionId}`);
 
     ws.onopen = () => {
       console.log('WebSocket connected');
