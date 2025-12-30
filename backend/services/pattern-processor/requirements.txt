@@ -1,0 +1,12 @@
+# Kafka Integration
+confluent-kafka==2.3.0
+
+# Data Processing
+pydantic==2.5.0
+
+# Configuration
+python-dotenv==1.0.0
+
+# Utilities
+python-dateutil==2.8.2
+requests==2.31.0

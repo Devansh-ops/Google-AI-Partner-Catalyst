@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+    spec:
+      containers:
+      - name: taskmanager
+        image: gcr.io/YOUR_PROJECT_ID/flink-pattern-detector:latest
+        args: ["taskmanager"]
+        ports:
+        - containerPort: 6122
+          name: data
+        - containerPort: 6125
+          name: query
+        - containerPort: 9249
+          name: metrics
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secrets
+              key: bootstrap-servers
+        - name: KAFKA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secrets
+              key: api-key
+        - name: KAFKA_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secrets
+              key: api-secret
+        - name: FLINK_CHECKPOINT_DIR
+          value: "gs://your-gcs-bucket/flink-checkpoints"
+        - name: JOB_MANAGER_RPC_ADDRESS
+          value: "flink-jobmanager"
+        volumeMounts:
+        - name: flink-config
+          mountPath: /opt/flink/conf/flink-conf.yaml
+          subPath: flink-conf.yaml
+        resources:
+          requests:
+            memory: "1.5Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: flink-config
+        configMap:
+          name: flink-realtime-config

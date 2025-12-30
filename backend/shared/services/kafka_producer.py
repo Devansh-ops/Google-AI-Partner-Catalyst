@@ -1,11 +1,6 @@
 import json
 import logging
 from confluent_kafka import Producer
-import sys
-import os
-
-# Add shared to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from shared.config.kafka_config import get_producer_config
 from shared.utils.kafka_utils import delivery_callback
 
@@ -13,12 +8,31 @@ logger = logging.getLogger(__name__)
 
 
 class KafkaProducerService:
-    def __init__(self):
-        self.producer = Producer(get_producer_config())
-        logger.info("Kafka producer initialized")
-    
+    """Shared Kafka producer service for publishing events"""
+
+    def __init__(self, client_id: str = None):
+        """
+        Initialize Kafka producer.
+
+        Args:
+            client_id: Optional client ID for producer identification
+        """
+        config = get_producer_config()
+        if client_id:
+            config['client.id'] = client_id
+
+        self.producer = Producer(config)
+        logger.info(f"Kafka producer initialized (client_id: {config.get('client.id', 'default')})")
+
     def send_event(self, topic: str, session_id: str, event_data: dict):
-        """Send event to Kafka topic"""
+        """
+        Send event to Kafka topic.
+
+        Args:
+            topic: Kafka topic name
+            session_id: Session ID (used as Kafka key for partitioning)
+            event_data: Event data dictionary (will be JSON serialized)
+        """
         try:
             event_json = json.dumps(event_data)
             self.producer.produce(
@@ -32,7 +46,7 @@ class KafkaProducerService:
         except Exception as e:
             logger.error(f"Failed to send event to Kafka: {e}")
             raise
-    
+
     def close(self):
         """Close producer connection"""
         self.producer.flush()
