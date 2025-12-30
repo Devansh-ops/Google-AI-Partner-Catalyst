@@ -314,7 +314,7 @@
         if (foundStatus) {
           console.log('[LeetCode Mentor] Result captured: ' + foundStatus);
           var isCorrect = foundStatus === 'Accepted';
-          var testStatus = isCorrect ? 'passed' : 'failed';
+          var testStatus = isCorrect ? 'success' : 'failed';
 
           window.dispatchEvent(new CustomEvent("CODE_EXECUTION_RESULT", {
             detail: createEventPayload("CODE_EXECUTION_RESULT", {

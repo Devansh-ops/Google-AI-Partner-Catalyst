@@ -62,6 +62,7 @@ function App() {
   const lastHintIdRef = useRef<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Listen for problem updates from content script
   useDomEvent<ProblemEvent>('PROBLEM_UPDATED', (e) => {
@@ -97,34 +98,44 @@ function App() {
     }
   }, window);
 
-  const showEventToast = (eventType: string) => {
-    toast(
-      ({ closeToast }) => (
-        <div onClick={() => setIsOpen(true)}>
-          <LiveToast
-            title="Event Triggered"
-            message={`Event Type: ${eventType}`}
-            type="info"
-            onClose={closeToast}
-          />
-        </div>
-      ),
-      {
-        autoClose: 3000,
-        className: "!bg-transparent !p-0 !border-0 !shadow-none !mb-4",
-        icon: false,
-        closeButton: false,
+  const handleExtensionEvent = (e: GenericLeetCodeEvent) => {
+    const detail = e.detail;
+    if (!detail) return;
+
+
+
+    // Send to WebSocket if verified
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      let payload = { ...detail };
+
+      // Map event types to backend schema (backend/shared/models/event_schemas.py)
+      // Valid types: 'CODE_CHANGE', 'TAB_SWITCH', 'HINT_REQUEST', 'TEST_RUN', 'GIVE_UP'
+
+      if (payload.event_type === 'CODE_EXECUTION_RESULT') {
+        // Map execution results to TEST_RUN with status
+        payload.event_type = 'TEST_RUN';
+        // payload already has test_status, error_message, code, etc. from inject.js
       }
-    );
+
+      // Ensure exact keys required by schema
+      const validTypes = ['CODE_CHANGE', 'TAB_SWITCH', 'HINT_REQUEST', 'TEST_RUN', 'GIVE_UP'];
+
+      if (validTypes.includes(payload.event_type)) {
+        console.log('Sending to WS:', payload);
+        wsRef.current.send(JSON.stringify(payload));
+      } else {
+        console.warn(`Skipping sending unknown event type: ${payload.event_type}`);
+      }
+    }
   };
 
   // Generic Event Listeners
-  useDomEvent<GenericLeetCodeEvent>('CODE_RESPONSE', (e) => showEventToast(e.detail?.event_type || 'CODE_RESPONSE'), window);
-  useDomEvent<GenericLeetCodeEvent>('TAB_SWITCH', (e) => showEventToast(e.detail?.event_type || 'TAB_SWITCH'), window);
-  //useDomEvent<GenericLeetCodeEvent>('TEST_RUN', (e) => showEventToast(e.detail?.event_type || 'TEST_RUN'), window);
-  //useDomEvent<GenericLeetCodeEvent>('SUBMIT_CODE', (e) => showEventToast(e.detail?.event_type || 'SUBMIT_CODE'), window);
-  useDomEvent<GenericLeetCodeEvent>('CODE_EXECUTION_RESULT', (e) => showEventToast(e.detail?.event_type || 'CODE_EXECUTION_RESULT'), window);
-  useDomEvent<GenericLeetCodeEvent>('PROBLEM_UPDATED', (e) => showEventToast(e.detail?.event_type || 'PROBLEM_UPDATED'), window);
+  useDomEvent<GenericLeetCodeEvent>('CODE_RESPONSE', handleExtensionEvent, window);
+  useDomEvent<GenericLeetCodeEvent>('TAB_SWITCH', handleExtensionEvent, window);
+  //useDomEvent<GenericLeetCodeEvent>('TEST_RUN', handleExtensionEvent, window); // inject.js handles this internally and emits CODE_EXECUTION_RESULT later
+  //useDomEvent<GenericLeetCodeEvent>('SUBMIT_CODE', handleExtensionEvent, window);
+  useDomEvent<GenericLeetCodeEvent>('CODE_EXECUTION_RESULT', handleExtensionEvent, window);
+  useDomEvent<GenericLeetCodeEvent>('PROBLEM_UPDATED', handleExtensionEvent, window);
 
   // Initial request for problem details
   useEffect(() => {
@@ -173,36 +184,62 @@ function App() {
     if (!question.trim()) return;
     setSessionState('starting');
 
-    // Simulate API call / Kafka Topic Creation
-    setTimeout(() => {
+    const sessionId = self.crypto.randomUUID();
+
+    // Connect to WebSocket
+    const ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+
+    ws.onopen = () => {
+      console.log('WebSocket connected');
       setSessionState('active');
+
       // Add initial system message
       const initId = 'init-' + Date.now();
       setHints([
         {
           id: initId,
-          text: `Session started for: "${question}". Monitoring your code changes...`,
+          text: `Session started for: "${question}" (Session ID: ${sessionId}). Monitoring your code changes...`,
           type: 'info',
           timestamp: Date.now()
         }
       ]);
-      lastHintIdRef.current = initId; // Mark as seen so it doesn't toast
+      lastHintIdRef.current = initId;
+    };
 
-      // Simulate an incoming AI hint after a delay
-      setTimeout(() => {
-        setHints(prev => [...prev, {
-          id: 'hint-' + Date.now(),
-          text: description
-            ? `I see you're working on "${question}". The problem asks to: ${description.substring(0, 100)}... Based on this, consider edge cases.`
-            : "Based on the problem description, using a standard sorting algorithm might exceed the time limit. Have you considered optimized approaches?",
-          type: 'warning',
-          timestamp: Date.now()
-        }]);
-      }, 5000);
-    }, 1500);
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'hint') {
+          setHints(prev => [...prev, {
+            id: 'hint-' + Date.now(),
+            text: data.hint,
+            type: 'warning',
+            timestamp: Date.now()
+          }]);
+        }
+      } catch (e) {
+        console.error("Error parsing WS message", e);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      toast.error("Failed to connect to session server");
+      setSessionState('idle');
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+
+    wsRef.current = ws;
   };
 
   const endSession = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
     setSessionState('idle');
     setHints([]);
     setIsChatMode(false);
@@ -221,14 +258,37 @@ function App() {
   }, document);
 
   const handleRequestHint = () => {
-    // Determine the type of hint based entirely on simulation for now
-    // In a real app, this would query the LLM with the current code state
-    setHints(prev => [...prev, {
-      id: 'manual-hint-' + Date.now(),
-      text: "You requested a hint! Here's a tip: Check if your loop condition covers the last element correctly. Off-by-one errors are common here.",
-      type: 'warning',
-      timestamp: Date.now()
-    }]);
+    // Send HINT_REQUEST to backend
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const payload = {
+        event_type: 'HINT_REQUEST',
+        timestamp: new Date().toISOString(),
+        // We can include other details if available in a ref, but schema says optional or handled by backend knowing session context
+        // Ideally we should send current code too if possible, but for now just the event type is key
+        // The pattern-processor or hint-generator likely needs code.
+        // Let's try to grab it if we have it? 
+        // We don't have code in App state. The inject.js sends it via events.
+        // Ideally HINT_REQUEST should be sent via inject.js if we want to capture code at that moment?
+        // But the button is in React side.
+        // We can trigger an event that inject.js listens to?
+        // Or simpler: Just send HINT_REQUEST here. The backend relies on previous code history?
+        // Actually, schema definition: "Pattern-processor sends last 5 iterations". So it uses stored history. 
+        // So just sending HINT_REQUEST is fine.
+      };
+
+      console.log('Sending HINT_REQUEST to WS');
+      wsRef.current.send(JSON.stringify(payload));
+
+      // Add "Requesting hint..." msg locally
+      setHints(prev => [...prev, {
+        id: 'req-hint-' + Date.now(),
+        text: "Requesting hint...",
+        type: 'info',
+        timestamp: Date.now()
+      }]);
+    } else {
+      toast.error("Not connected to session");
+    }
   };
 
   const { throttledCallback: throttledRequestHint, isThrottled: isHintThrottled } = useThrottle(handleRequestHint, settings.throttleDuration);
