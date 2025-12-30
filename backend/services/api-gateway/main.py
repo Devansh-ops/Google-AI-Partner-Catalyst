@@ -46,7 +46,6 @@ app = FastAPI(
     - `hint` - AI-generated hint from Gemini
     - `ack` - Event acknowledgment
     - `error` - Error message
-    - `chat_response` - AI response to chat message
     """,
     version="1.0.0",
     contact={
