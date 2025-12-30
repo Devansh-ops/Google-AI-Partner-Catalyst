@@ -159,6 +159,23 @@
             color: #533f03;
             line-height: 1.6;
             margin-bottom: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .hint pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .hint code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
         }
         .hint small {
             color: #856404;
@@ -213,11 +230,11 @@
             </div>
 
             <div class="section">
-                <h3>📝 Test Event</h3>
-                
+                <h3>📝 Test Events</h3>
+
                 <label>Problem Title:</label>
                 <input type="text" id="problemTitle" value="Two Sum" />
-                
+
                 <label>Your Code:</label>
                 <textarea id="code">def twoSum(nums, target):
     for i in range(len(nums)):
@@ -225,13 +242,27 @@
             if nums[i] + nums[j] == target:
                 return [i, j]
     return None</textarea>
-                
-                <label>Error Message (optional):</label>
-                <input type="text" id="errorMessage" placeholder="e.g., KeyError: 4" />
-                
+
+                <label>Problem Description:</label>
+                <textarea id="problemDescription" style="min-height: 100px;">Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.</textarea>
+
+                <label>Test Status (for TEST_RUN):</label>
+                <select id="testStatus" style="padding: 12px; margin-bottom: 15px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                    <option value="success">✅ Success (tests passed)</option>
+                    <option value="failed">❌ Failed</option>
+                    <option value="timeout">⏱️ Timeout</option>
+                </select>
+
+                <label>Error Message (for failed TEST_RUN):</label>
+                <input type="text" id="errorMessage" placeholder="e.g., Expected [0,1] but got [1,2]" />
+
+                <h4 style="margin: 20px 0 10px 0; color: #667eea;">5 Event Types (Simplified Architecture):</h4>
                 <div class="button-group">
-                    <button onclick="sendCodeChange()">Send Code Change</button>
-                    <button onclick="sendTestResult()">Send Test Result</button>
+                    <button onclick="sendEvent('CODE_CHANGE')" title="Significant code changes (3+ lines)">📝 Code Change</button>
+                    <button onclick="sendEvent('TAB_SWITCH')" title="User switched away/back to tab">🔄 Tab Switch</button>
+                    <button onclick="sendEvent('HINT_REQUEST')" title="User clicked 'Get Hint'">💡 Request Hint</button>
+                    <button onclick="sendEvent('TEST_RUN')" title="User ran tests">🧪 Test Run</button>
+                    <button onclick="sendEvent('GIVE_UP')" title="User wants full solution">🏳️ Give Up</button>
                 </div>
             </div>
 
@@ -325,45 +356,67 @@
             }
         }
 
-        function sendCodeChange() {
+        function sendEvent(eventType) {
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 alert('Please connect first!');
                 return;
             }
 
-            const event = {
-                event_type: 'code_change',
-                timestamp: new Date().toISOString(),
-                problem_title: document.getElementById('problemTitle').value,
-                code: document.getElementById('code').value
-            };
-
-            ws.send(JSON.stringify(event));
-            log('Sent: code_change event', 'success');
-        }
-
-        function sendTestResult() {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                alert('Please connect first!');
-                return;
-            }
-
+            const problemTitle = document.getElementById('problemTitle').value;
+            const problemDescription = document.getElementById('problemDescription').value;
+            const code = document.getElementById('code').value;
+            const testStatus = document.getElementById('testStatus').value;
             const errorMsg = document.getElementById('errorMessage').value;
-            const isPassed = !errorMsg;
 
+            // Base event structure (all events have these)
             const event = {
-                event_type: 'test_result',
+                event_type: eventType,
                 timestamp: new Date().toISOString(),
-                problem_title: document.getElementById('problemTitle').value,
-                code: document.getElementById('code').value,
-                error_message: errorMsg || null,
-                status: isPassed ? 'passed' : 'failed',
-                is_correct: isPassed,  // Add is_correct field
-                test_status: isPassed ? 'passed' : 'failed'  // Add test_status field
+                problem_title: problemTitle,
+                problem_description: problemDescription
             };
 
+            // Add event-specific fields based on the 5 event types
+            switch(eventType) {
+                case 'CODE_CHANGE':
+                    // Pattern-processor checks for 3+ line changes
+                    event.code = code;
+                    log('Sending CODE_CHANGE - Pattern-processor will check for significant changes', 'info');
+                    break;
+
+                case 'TAB_SWITCH':
+                    // Sent when user switches tabs
+                    // Pattern-processor makes direct HTTP call to hint-generator
+                    log('Sending TAB_SWITCH - Will trigger encouragement via HTTP', 'info');
+                    break;
+
+                case 'HINT_REQUEST':
+                    // User explicitly clicked "Get Hint"
+                    // Pattern-processor sends last 5 iterations to hint-generator
+                    log('Sending HINT_REQUEST - Will analyze last 5 iterations', 'info');
+                    break;
+
+                case 'TEST_RUN':
+                    // User ran tests locally
+                    event.code = code;
+                    event.test_status = testStatus;
+                    event.error_message = testStatus === 'failed' ? (errorMsg || 'Test failed') : '';
+                    log(`Sending TEST_RUN with status: ${testStatus}`, 'info');
+                    break;
+
+                case 'GIVE_UP':
+                    // User wants full solution with 3 approaches
+                    log('Sending GIVE_UP - Will receive brute force, good, and best solutions', 'info');
+                    break;
+
+                default:
+                    log(`Unknown event type: ${eventType}`, 'error');
+                    return;
+            }
+
             ws.send(JSON.stringify(event));
-            log(`Sent: test_result event (${isPassed ? 'PASSED' : 'FAILED'})`, 'success');
+            log(`Sent: ${eventType} event`, 'success');
+            console.log('Event payload:', event);
         }
 
         function displayHint(hintText, timestamp) {
@@ -387,7 +440,7 @@
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'Enter') {
-                sendTestResult();
+                sendEvent('TEST_RUN');
             }
         });
     </script>

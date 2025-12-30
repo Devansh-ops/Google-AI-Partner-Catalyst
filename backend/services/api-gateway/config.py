@@ -14,9 +14,9 @@ class Config:
     KAFKA_API_KEY = os.getenv('KAFKA_API_KEY')
     KAFKA_API_SECRET = os.getenv('KAFKA_API_SECRET')
     
-    # Topics
-    TOPIC_EVENTS_REALTIME = 'events.realtime'
-    TOPIC_HINTS_RESPONSES = 'hints.responses'
+    # Topics - Using two topics to minimize EKCU costs
+    TOPIC_EVENTS = 'events.realtime'  # All incoming events
+    TOPIC_HINTS_RESPONSES = 'hints.responses'  # All hint responses
 
 
 config = Config()
