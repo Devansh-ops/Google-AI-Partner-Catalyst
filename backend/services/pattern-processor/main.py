@@ -128,7 +128,9 @@ class PatternProcessor:
                 'problem_title': session.problem_title,
                 'problem_description': session.problem_description,
                 'previous_code': session.get_last_n_iterations(2)[0]['code'] if len(session.code_history) >= 2 else '',
-                'current_code': code
+                'current_code': code,
+                'tone': event.get('tone'),
+                'experience_level': event.get('experience_level')
             }
 
             self.producer.send_event(
@@ -159,7 +161,10 @@ class PatternProcessor:
                     'timestamp': event.get('timestamp'),
                     'problem_title': session.problem_title,
                     'problem_description': session.problem_description,
-                    'current_code': session.last_code
+                    'problem_description': session.problem_description,
+                    'current_code': session.last_code,
+                    'tone': event.get('tone'),
+                    'experience_level': event.get('experience_level')
                 },
                 timeout=10
             )
@@ -195,7 +200,9 @@ class PatternProcessor:
             'problem_title': session.problem_title,
             'problem_description': session.problem_description,
             'current_code': session.last_code,
-            'iterations': iterations
+            'iterations': iterations,
+            'tone': event.get('tone'),
+            'experience_level': event.get('experience_level')
         }
 
         self.producer.send_event(
@@ -236,7 +243,9 @@ class PatternProcessor:
             'problem_description': session.problem_description,
             'code': code,
             'test_status': test_status,
-            'error_message': error_message
+            'error_message': error_message,
+            'tone': event.get('tone'),
+            'experience_level': event.get('experience_level')
         }
 
         self.producer.send_event(
@@ -265,7 +274,9 @@ class PatternProcessor:
             'session_id': session_id,
             'timestamp': event.get('timestamp'),
             'problem_title': session.problem_title,
-            'problem_description': session.problem_description
+            'problem_description': session.problem_description,
+            'tone': event.get('tone'),
+            'experience_level': event.get('experience_level')
         }
 
         self.producer.send_event(
