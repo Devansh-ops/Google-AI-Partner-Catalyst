@@ -45,11 +45,11 @@ spec:
           readOnly: true
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
+            memory: "384Mi"
             cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
       volumes:
       - name: vertex-ai-key
         secret:
