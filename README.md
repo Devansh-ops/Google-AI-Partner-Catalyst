@@ -16,11 +16,11 @@ We wanted to fix this broken loop. We asked ourselves: *What if you had a Senior
 
 **LeetCode Mentor** is an intelligent browser extension that transforms LeetCode into an interactive learning environment.
 
+*   **Deep Chat Integration:** Stuck on a specific concept? Open the chat mode to have a deep, multi-turn conversation about *your* specific code implementation without ever leaving the page. (See **[Chat Service](./vertex-chat)** for implementation details.)
 *   **Real-time AI Observation:** It watches your keystrokes and code changes live as you type.
 *   **Socratic Guidance:** Instead of giving answers, it provides **subtle, context-aware nudges**. If you have an off-by-one error, it hints at checking your loop bounds. If you miss a base case, it gently reminds you.
 *   **Struggle Detection:** It analyzes behavioral patterns—like rapid tab switching or repeated failed test runs—to detect when you are frustrated and proactively offers help.
 *   **Adaptive Personas:** Choose your mentor's personality! From a "Supportive Guide" who cheers you on to a "Rude Senior Engineer" who ruthlessly (but helpfully) critiques your inefficiency.
-*   **Deep Chat Integration:** Stuck on a specific concept? Open the chat mode to have a deep, multi-turn conversation about *your* specific code implementation without ever leaving the page.
 
 ## ⚙️ How we built it
 
@@ -67,7 +67,7 @@ We engineered a sophisticated **Event-Driven Microservices Architecture** to ens
 │   ├── services/
 │   │   ├── api-gateway/    # FastAPI WebSocket Gateway
 │   │   ├── pattern-processor/ # Kafka Consumer & Logic Engine
-│   │   ├── hint-generator/ # Vertex AI Integration
-│   │   └── chat-service/   # Interactive Chat Logic
+│   │   └── hint-generator/ # Vertex AI Integration
 │   └── shared/             # Shared Utils & Models
+├── vertex-chat/            # LangGraph Component (Interactive Chat)
 ```
