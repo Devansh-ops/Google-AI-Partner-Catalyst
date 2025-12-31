@@ -5,11 +5,17 @@ WORKDIR /app
 # Copy dependency files
 COPY pyproject.toml ./
 
-# Install dependencies
-RUN pip install --no-cache-dir -e .
+# Install dependencies directly from pyproject.toml
+RUN pip install --no-cache-dir \
+    "langchain-google-genai>=4.1.2" \
+    "langchain-google-vertexai>=3.2.0" \
+    "langgraph-cli[draw,inmem]>=0.4.11"
 
 # Copy application code
 COPY agent.py langgraph.json ./
+
+# Create empty .env file (langgraph.json references it)
+RUN touch .env
 
 # Expose LangGraph server port
 EXPOSE 8000
@@ -18,5 +24,5 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/key.json
 
-# Run LangGraph server in production mode
-CMD ["python", "-m", "langgraph", "up", "--host", "0.0.0.0", "--port", "8000"]
+# Run LangGraph server using CLI directly
+CMD ["langgraph", "up", "--host", "0.0.0.0", "--port", "8000"]

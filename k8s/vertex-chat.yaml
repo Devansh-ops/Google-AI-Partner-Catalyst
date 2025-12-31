@@ -32,6 +32,11 @@ spec:
             configMapKeyRef:
               name: app-config
               key: VERTEX_AI_LOCATION
+        - name: LANGSMITH_API_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: LANGSMITH_API_KEY
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /var/secrets/google/key.json
         volumeMounts:
