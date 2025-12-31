@@ -3,6 +3,14 @@ name: Publish Docker images to GHCR
 on:
   push:
     branches: ["dev"]
+    paths:
+      - ".github/workflows/publish-images.yml"
+      - "backend/shared/**"
+      - "backend/requirements.txt"
+      - "backend/services/api-gateway/**"
+      - "backend/services/chat-service/**"
+      - "backend/services/hint-generator/**"
+      - "backend/services/pattern-processor/**"
   workflow_dispatch:
 
 permissions:
