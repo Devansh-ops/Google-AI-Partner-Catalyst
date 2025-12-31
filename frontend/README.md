@@ -1,108 +1,78 @@
+# 🖥️ LeetCode Mentor - Frontend
 
-## 1. High-Level Architecture
+The frontend is a **Chrome Extension** built with **React**, **TypeScript**, **Vite**, and **Tailwind CSS**. It injects a rich, interactive overlay into LeetCode problem pages to provide real-time AI mentoring.
 
-Unlike a traditional React app, this extension lives in multiple "isolated worlds":
+## ⚡️ Key Features
 
-| Component | Technology | Role | Access |
-| :--- | :--- | :--- | :--- |
-| **Content Script** | React + Vite | The main UI overlay. Runs isolated from the page's JS variables. | DOM Access, Limited Chrome API. |
-| **Inject Script** | Vanilla JS | A bridge to access LeetCode's internals (Monaco Editor). | **Full Window Object Access**. No Chrome API. |
-| **Shadow DOM** | Web API | Encapsulates our styles so they don't break LeetCode (and vice versa). | Style Isolation. |
+- **Isolated UI**: Uses **Shadow DOM** to prevent CSS conflicts with LeetCode's existing styles.
+- **Monaco Editor Integration**: A custom "Injection Bridge" allows reading code directly from LeetCode's editor instance.
+- **Hot Module Replacement (HMR)**: Full HMR support for rapid development, even inside a Chrome Extension.
+- **Modern Stack**: React 18, Framer Motion for animations, and Lucide React for icons.
 
-### The "Bridge" Pattern
-We need to read code from the Monaco Editor, which is a global variable (`window.monaco`) on LeetCode.
-*   **Problem**: Content Scripts *cannot* see variables defined by the page (security feature).
-*   **Solution**: We inject a script (`src/inject.js`) into the page. This script reads `window.monaco` and dispatches standard DOM events (`CustomEvent`) that our React app listens for.
-
----
-
-## 2. Project Structure
+## 🛠 Project Structure
 
 ```bash
 src/
-├── App.tsx             # Main Logic & State Machine
-├── content.tsx         # Entry Point (Mounts React to Shadow DOM)
-├── inject.js           # The "Bridge" script
-├── index.css           # Tailwind CSS
-├── types.ts            # Shared TypeScript definitions
-└── components/         # UI Components
-    ├── Header.tsx      # Popup Header
-    ├── ActiveView.tsx  # Main Chat/Hint Interface
-    ├── IdleView.tsx    # "Start Session" Screen
-    ├── ...             # Other atomic views
+├── App.tsx             # Main Application State Machine & Logic
+├── content.tsx         # Content Script (React Mount Point)
+├── inject.js           # Bridge script to access Window objects
+├── components/         # Reusable UI Components
+│   ├── ActiveView.tsx  # Main chat/hint interface
+│   ├── Header.tsx      # Draggable header
+│   └── ...
+├── hooks/              # Custom hooks (useDomEvent, etc.)
+└── index.css           # Tailwind + Global Styles
 ```
 
----
+## 🏗 Architecture Details
 
-## 3. Key Technical Concepts
+### 1. The Shadow DOM Barrier
+To ensure our "premium" UI doesn't look like a generic bootstrap modal, and to prevent LeetCode's styles from breaking our layout, we mount our entire React app inside a Shadow Root.
 
-### A. The Shadow DOM Root (`src/content.tsx`)
-Instead of mounting to `#root` in a blank HTML file, we create a new div, attach a **Shadow Root**, and mount React inside it.
-
-**Why?**
-*   **Style Protection**: LeetCode's global CSS (bootstraps, resets) won't mess up our UI.
-*   **Tailwind Isolation**: Our Tailwind classes won't leak out to color the rest of LeetCode.
-
-```typescript
+```tsx
 // src/content.tsx
 const root = document.createElement('div');
-document.body.append(root);
-const shadow = root.attachShadow({ mode: 'open' }); // The firewall
+const shadow = root.attachShadow({ mode: 'open' }); // Styles stop here
 ReactDOM.createRoot(shadow).render(<App />);
 ```
 
-### B. The Injection Bridge (`src/inject.js`)
-This script is loaded by `content.tsx` as a script tag. It runs in the *same context* as LeetCode's own JavaScript.
+### 2. The Injection Bridge (`inject.js`)
+Chrome extensions (Content Scripts) cannot access JavaScript variables on the parent page (like `window.monaco`). To get the user's code, we inject a script tag into the page's `<head>`.
 
-1.  **Reads**: `window.monaco.editor.getModels()`
-2.  **Sends**: `window.dispatchEvent(new CustomEvent('PROBLEM_UPDATED', ...))`
-3.  **App Listens**: `src/App.tsx` has a `window.addEventListener('PROBLEM_UPDATED', ...)`
+1. `inject.js` runs in the page context.
+2. It hooks into `window.monaco` to listen for changes.
+3. It dispatches a `CustomEvent` ('CODE_CHANGE') to the `window` object.
+4. Our React App (`content.tsx`) listens for this event and updates state.
 
-### C. State Machine (`src/App.tsx`)
-The app isn't just a static page; it's a state machine:
-*   `idle`: Waiting for the user to start.
-*   `starting`: Connecting (simulated).
-*   `active`: Monitoring changes and giving hints.
+## 🚀 Development Setup
 
----
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-## 4. Development Workflow
+2. **Start Dev Server**
+   ```bash
+   npm run dev
+   ```
+   *This will run Vite in watch mode and output to `dist/`.*
 
-This project uses **Vite** + **@crxjs/vite-plugin** for a modern developer experience (HMR).
+3. **Load in Chrome**
+   - Go to `chrome://extensions`
+   - Enable **Developer Mode**
+   - Click **Load Unpacked**
+   - Select the `frontend/dist` directory
 
-### Setup & Run
-1.  `npm install`
-2.  `npm run dev` (Keeps watching for changes)
-3.  Open Chrome → `chrome://extensions`
-4.  Enable **Developer Mode**
-5.  **Load Unpacked** → Select the `dist/` folder created by Vite.
+4. **Iterate**
+   - **UI Changes**: HMR will auto-update the extension (mostly).
+   - **Manifest/Script Changes**: You may need to refresh the extension on the `chrome://extensions` page and reload the LeetCode tab.
 
-### How to Iterate
-*   **UI Changes**: Edit `App.tsx` or components. HMR usually updates the UI without a reload.
-*   **Logic Changes**: If you edit `inject.js`, you usually need to refresh the LeetCode page.
-*   **Manifest Changes**: If you edit `manifest.json`, you must reload the extension in `chrome://extensions`.
+## 📦 Building for Production
 
----
-
-## 5. Troubleshooting Common Issues
-
-### "Extension context invalidated"
-*   **Cause**: You updated the extension code, but the old content script is still running on the open LeetCode tab.
-*   **Fix**: Refresh the LeetCode web page.
-
-### "Styles look broken"
-*   **Cause**: We are in Shadow DOM. Some global styles (like `html/body` font-family) might not pass through.
-*   **Fix**: Explicitly set font-family and resets in `src/index.css` or the top-level container in `App.tsx`.
-
-### "Cannot find Monaco"
-*   **Cause**: The `inject.js` script ran before LeetCode finished loading Monaco.
-*   **Fix**: The script currently uses intervals to poll for the editor presence. Check the console logs for "[LeetCode Mentor]" messages.
-
----
-
-## 6. Building for Production
+To create a production-ready build (minified, optimized):
 
 ```bash
 npm run build
 ```
-This generates a production-ready `dist/` folder. This is what you would zip and upload to the Chrome Web Store.
+
+This will generate the artifacts in `dist/` which can be zipped and published to the Chrome Web Store.

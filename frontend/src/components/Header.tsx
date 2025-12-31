@@ -19,7 +19,7 @@ export const Header = ({ sessionState, onClose, onOpenSettings }: HeaderProps) =
                         sessionState === 'starting' ? "bg-yellow-500 animate-ping" : "bg-gray-400"
                 )} />
                 <h2 className="font-semibold text-gray-800 dark:text-white text-lg tracking-tight">
-                    {sessionState === 'active' ? 'Live Session' : 'Nudge Mentor'}
+                    {sessionState === 'active' ? 'Live Session' : 'LeetCode  Mentor'}
                 </h2>
             </div>
             <div className="flex items-center gap-2">

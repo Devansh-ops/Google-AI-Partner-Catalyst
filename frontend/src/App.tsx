@@ -515,7 +515,7 @@ User Query: ${message}
                     <ActiveFooter
                       onEndSession={endSession}
                       onRequestHint={throttledRequestHint}
-                      canEnterChat={settings.chatModeEnabled && hints.length >= 0}
+                      canEnterChat={settings.chatModeEnabled && hints.length >=4}
                       onEnterChat={() => setIsChatMode(true)}
                       isHintThrottled={isHintThrottled}
                       throttleDuration={settings.throttleDuration}
