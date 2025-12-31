@@ -1,3 +1,24 @@
+# Download and Install (Manual)
+
+- Download latest ZIP: https://github.com/Devansh-ops/Google-AI-Partner-Catalyst/releases/latest/download/leetcode-mentor-latest.zip
+- Landing page (auto-updated): https://devansh-ops.github.io/Google-AI-Partner-Catalyst/
+
+Install (Chrome/Edge):
+1. Unzip the downloaded file.
+2. Open chrome://extensions (Edge: edge://extensions).
+3. Enable Developer mode.
+4. Click "Load unpacked" and select the unzipped folder (contains manifest.json).
+5. Open a LeetCode problem page and use the extension.
+
+Release process (CI auto-builds and uploads ZIPs on tags):
+1. Optional: bump version in frontend/vite.config.ts (manifest).
+2. Tag and push:
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+3. Artifacts:
+   - versioned: leetcode-mentor-vX.Y.Z.zip
+   - stable: leetcode-mentor-latest.zip (used by the landing page)
+
 # Project Setup
 
 ## Backend Setup

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gemini LeetCode Mentor — Download</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Download the Gemini LeetCode Mentor Chrome/Edge extension ZIP for manual install (Load unpacked)." />
+    <style>
+      :root { --brand:#0d6efd; --bg:#0b1020; --card:#10162a; --text:#e6edf3; --muted:#96a2b4; }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+      .wrap { max-width: 880px; margin: 48px auto; padding: 0 16px; }
+      .card { background: var(--card); border: 1px solid #1b2340; border-radius: 12px; padding: 20px; }
+      h1 { margin: 0 0 16px; font-size: 28px; }
+      h2 { margin: 28px 0 12px; font-size: 20px; }
+      p { color: var(--muted); line-height: 1.6; }
+      code { background: #0a0f1f; padding: 2px 6px; border-radius: 6px; color: #c3d1ff; }
+      ol { padding-left: 22px; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 10px;
+        padding: 12px 18px; background: var(--brand); color: #fff;
+        border-radius: 10px; text-decoration: none; font-weight: 600;
+        box-shadow: 0 8px 24px rgba(13,110,253,.25);
+      }
+      .btn:hover { filter: brightness(1.06); }
+      .meta { margin-top: 10px; color: var(--muted); font-size: 14px; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+      @media (min-width: 800px) { .grid { grid-template-columns: 1fr 1fr; } }
+      .footer { margin-top: 28px; font-size: 13px; color: var(--muted); }
+      .kbd { border: 1px solid #33406a; background: #0a0f1f; padding: 0 6px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>Gemini LeetCode Mentor — Manual Download</h1>
+        <p>Download the latest ZIP of the extension for manual installation in Chrome/Edge via <em>Load unpacked</em>.</p>
+        <p>
+          <a class="btn" id="dl" href="https://github.com/Devansh-ops/Google-AI-Partner-Catalyst/releases/latest/download/leetcode-mentor-latest.zip" download>
+            ⬇️ Download latest ZIP
+          </a>
+        </p>
+        <div class="meta" id="meta">Checking latest version…</div>
+      </div>
+
+      <div class="grid" style="margin-top:16px">
+        <div class="card">
+          <h2>Install (Chrome/Edge)</h2>
+          <ol>
+            <li>Unzip the downloaded file.</li>
+            <li>Open <code>chrome://extensions</code> (Edge: <code>edge://extensions</code>).</li>
+            <li>Enable <b>Developer mode</b>.</li>
+            <li>Click <b>Load unpacked</b> and select the unzipped folder (must contain <code>manifest.json</code>).</li>
+            <li>Open a LeetCode problem page to use the extension.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>Troubleshooting</h2>
+          <ul>
+            <li>If UI doesn’t appear, refresh the LeetCode page.</li>
+            <li>If you previously loaded another version, click <b>Reload</b> in the Extensions page.</li>
+            <li>For updates, repeat download and Load unpacked.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer">
+        Direct latest link: <code>https://github.com/Devansh-ops/Google-AI-Partner-Catalyst/releases/latest/download/leetcode-mentor-latest.zip</code>
+      </div>
+    </div>
+
+    <script>
+      (async () => {
+        const metaEl = document.getElementById('meta');
+        try {
+          const res = await fetch('https://api.github.com/repos/Devansh-ops/Google-AI-Partner-Catalyst/releases/latest', { headers: { 'Accept': 'application/vnd.github+json' }});
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          const tag = data.tag_name || 'N/A';
+          const date = data.published_at ? new Date(data.published_at).toLocaleString() : 'N/A';
+          metaEl.textContent = `Latest release: ${tag} • Published: ${date}`;
+        } catch (e) {
+          metaEl.textContent = 'Latest version: N/A';
+        }
+      })();
+    </script>
+  </body>
+</html>
