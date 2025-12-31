@@ -1,0 +1,41 @@
+name: Publish Docker images to GHCR
+
+on:
+  push:
+    branches: [ dev ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PAT }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push images
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          platforms: linux/amd64,linux/arm64
+          builds: |
+            context=./backend,file=services/chat-service/Dockerfile,tags=ghcr.io/devansh-ops/leetcode-mentor-chat-service:latest,ghcr.io/devansh-ops/leetcode-mentor-chat-service:latest
+            context=./backend,file=services/hint-generator/normal-pool/Dockerfile,tags=ghcr.io/devansh-ops/leetcode-mentor-hint-generator:latest,ghcr.io/devansh-ops/leetcode-mentor-hint-generator:latest
+            context=./backend,file=services/pattern-processor/Dockerfile,tags=ghcr.io/devansh-ops/leetcode-mentor-pattern-processor:latest,ghcr.io/devansh-ops/leetcode-mentor-pattern-processor:latest
+            context=./backend,file=services/api-gateway/Dockerfile,tags=ghcr.io/devansh-ops/leetcode-mentor-api-gateway:latest,ghcr.io/devansh-ops/leetcode-mentor-api-gateway:latest
