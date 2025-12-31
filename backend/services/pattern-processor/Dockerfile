@@ -26,3 +26,5 @@ ENV PROCESSOR_STATE_DIR=/app/state
 
 # Run the processor
 CMD ["python", "main.py"]
+
+LABEL org.opencontainers.image.source https://github.com/Devansh-ops/Google-AI-Partner-Catalyst

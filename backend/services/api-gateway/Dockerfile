@@ -14,3 +14,5 @@ COPY services/api-gateway/ .
 EXPOSE 8000
 
 CMD ["python", "main.py"]
+
+LABEL org.opencontainers.image.source https://github.com/Devansh-ops/Google-AI-Partner-Catalyst

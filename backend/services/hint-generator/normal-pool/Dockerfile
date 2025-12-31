@@ -15,3 +15,5 @@ COPY services/hint-generator/normal-pool/ .
 # or set via environment variable
 
 CMD ["python", "start.py"]
+
+LABEL org.opencontainers.image.source https://github.com/Devansh-ops/Google-AI-Partner-Catalyst
