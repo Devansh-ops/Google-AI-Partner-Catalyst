@@ -75,3 +75,7 @@ Thumbs.db
 
 # virtual env
 .venv
+
+vertex-chat/.env
+vertex-chat/.langgraph_api
+vertex-chat/vertex-key.json
