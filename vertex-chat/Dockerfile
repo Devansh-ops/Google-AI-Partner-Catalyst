@@ -2,14 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install uv for fast Python package installation
-RUN pip install --no-cache-dir uv
-
 # Copy dependency files
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 
-# Install dependencies using uv
-RUN uv pip install --system -r pyproject.toml
+# Install dependencies
+RUN pip install --no-cache-dir -e .
 
 # Copy application code
 COPY agent.py langgraph.json ./
@@ -21,5 +18,5 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/key.json
 
-# Run LangGraph server
-CMD ["langgraph", "up", "--host", "0.0.0.0", "--port", "8000"]
+# Run LangGraph server in production mode
+CMD ["python", "-m", "langgraph", "up", "--host", "0.0.0.0", "--port", "8000"]
