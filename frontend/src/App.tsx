@@ -207,7 +207,7 @@ function App() {
 
 
     // Connect to WebSocket
-    const ws = new WebSocket(`${import.meta.env.VITE_PUBLIC_HINT_SERVICE_URL}/ws/${sessionId}`);
+    const ws = new WebSocket(`wss://leetcodementor.devanshsehgal.com/ws/${sessionId}`);
 
     ws.onopen = () => {
       console.log('WebSocket connected');
