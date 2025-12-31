@@ -22,4 +22,4 @@ ENV PYTHONUNBUFFERED=1
 ENV GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/key.json
 
 # Run LangGraph server
-CMD ["langgraph", "serve", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["langgraph", "dev", "--host", "0.0.0.0", "--port", "8000"]
