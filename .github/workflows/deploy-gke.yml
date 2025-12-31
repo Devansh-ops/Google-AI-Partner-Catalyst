@@ -1,0 +1,119 @@
+name: Deploy to Google Kubernetes Engine
+
+on:
+  push:
+    branches: ["dev"]
+    paths:
+      - "backend/**"
+      - "vertex-chat/**"
+      - "k8s/**"
+      - ".github/workflows/deploy-gke.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: leetcode-mentor-482308
+  GKE_CLUSTER: leetcode-mentor-cluster
+  GKE_ZONE: us-central1-a
+  REGISTRY: ghcr.io
+  NAMESPACE: devansh-ops
+
+jobs:
+  deploy:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --zone ${{ env.GKE_ZONE }} \
+            --project ${{ env.PROJECT_ID }}
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace leetcode-mentor --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Kubernetes secrets
+        run: |
+          # Create secret for Vertex AI key
+          kubectl create secret generic vertex-ai-key \
+            --from-literal=key.json='${{ secrets.VERTEX_AI_KEY_JSON }}' \
+            --namespace=leetcode-mentor \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Create secret for Confluent Kafka credentials
+          kubectl create secret generic kafka-credentials \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS='${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}' \
+            --from-literal=KAFKA_API_KEY='${{ secrets.KAFKA_API_KEY }}' \
+            --from-literal=KAFKA_API_SECRET='${{ secrets.KAFKA_API_SECRET }}' \
+            --namespace=leetcode-mentor \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Create ConfigMap for application config
+          kubectl create configmap app-config \
+            --from-literal=GOOGLE_CLOUD_PROJECT='${{ env.PROJECT_ID }}' \
+            --from-literal=VERTEX_AI_LOCATION='us-central1' \
+            --from-literal=VERTEX_AI_MODEL='gemini-1.5-flash' \
+            --from-literal=PORT='8000' \
+            --from-literal=HOST='0.0.0.0' \
+            --from-literal=HINT_GENERATOR_URL='http://hint-generator:8080' \
+            --namespace=leetcode-mentor \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Kubernetes manifests
+        run: |
+          # Update image tags in manifests
+          export IMAGE_TAG=${{ github.sha }}
+
+          # Apply manifests
+          kubectl apply -f k8s/api-gateway.yaml -n leetcode-mentor
+          kubectl apply -f k8s/pattern-processor.yaml -n leetcode-mentor
+          kubectl apply -f k8s/hint-generator.yaml -n leetcode-mentor
+          kubectl apply -f k8s/chat-service.yaml -n leetcode-mentor
+          kubectl apply -f k8s/vertex-chat.yaml -n leetcode-mentor
+
+      - name: Wait for deployments
+        run: |
+          kubectl rollout status deployment/api-gateway -n leetcode-mentor --timeout=5m
+          kubectl rollout status deployment/pattern-processor -n leetcode-mentor --timeout=5m
+          kubectl rollout status deployment/hint-generator -n leetcode-mentor --timeout=5m
+          kubectl rollout status deployment/chat-service -n leetcode-mentor --timeout=5m
+          kubectl rollout status deployment/vertex-chat -n leetcode-mentor --timeout=5m
+
+      - name: Get service endpoints
+        run: |
+          echo "=== Deployment Complete ==="
+          kubectl get services -n leetcode-mentor
+          echo ""
+          echo "API Gateway URL:"
+          kubectl get service api-gateway -n leetcode-mentor -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+          echo ""

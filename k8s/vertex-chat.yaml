@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vertex-chat
+  labels:
+    app: vertex-chat
+    component: agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vertex-chat
+  template:
+    metadata:
+      labels:
+        app: vertex-chat
+    spec:
+      containers:
+      - name: vertex-chat
+        image: ghcr.io/devansh-ops/leetcode-mentor-vertex-chat:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: GOOGLE_CLOUD_PROJECT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: GOOGLE_CLOUD_PROJECT
+        - name: VERTEX_AI_LOCATION
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: VERTEX_AI_LOCATION
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        volumeMounts:
+        - name: vertex-ai-key
+          mountPath: /var/secrets/google
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: vertex-ai-key
+        secret:
+          secretName: vertex-ai-key
+          items:
+          - key: key.json
+            path: key.json
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vertex-chat
+  labels:
+    app: vertex-chat
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: vertex-chat

@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hint-generator
+  labels:
+    app: hint-generator
+    component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hint-generator
+  template:
+    metadata:
+      labels:
+        app: hint-generator
+    spec:
+      containers:
+      - name: hint-generator
+        image: ghcr.io/devansh-ops/leetcode-mentor-hint-generator:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: GOOGLE_CLOUD_PROJECT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: GOOGLE_CLOUD_PROJECT
+        - name: VERTEX_AI_LOCATION
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: VERTEX_AI_LOCATION
+        - name: VERTEX_AI_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: VERTEX_AI_MODEL
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: KAFKA_BOOTSTRAP_SERVERS
+        - name: KAFKA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: KAFKA_API_KEY
+        - name: KAFKA_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: KAFKA_API_SECRET
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        volumeMounts:
+        - name: vertex-ai-key
+          mountPath: /var/secrets/google
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: vertex-ai-key
+        secret:
+          secretName: vertex-ai-key
+          items:
+          - key: key.json
+            path: key.json
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hint-generator
+  labels:
+    app: hint-generator
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: hint-generator

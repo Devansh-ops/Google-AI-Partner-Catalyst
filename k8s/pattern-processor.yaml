@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pattern-processor
+  labels:
+    app: pattern-processor
+    component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pattern-processor
+  template:
+    metadata:
+      labels:
+        app: pattern-processor
+    spec:
+      containers:
+      - name: pattern-processor
+        image: ghcr.io/devansh-ops/leetcode-mentor-pattern-processor:latest
+        imagePullPolicy: Always
+        env:
+        - name: GOOGLE_CLOUD_PROJECT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: GOOGLE_CLOUD_PROJECT
+        - name: VERTEX_AI_LOCATION
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: VERTEX_AI_LOCATION
+        - name: HINT_GENERATOR_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HINT_GENERATOR_URL
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: KAFKA_BOOTSTRAP_SERVERS
+        - name: KAFKA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: KAFKA_API_KEY
+        - name: KAFKA_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: KAFKA_API_SECRET
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        volumeMounts:
+        - name: vertex-ai-key
+          mountPath: /var/secrets/google
+          readOnly: true
+        - name: state-storage
+          mountPath: /app/state
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: vertex-ai-key
+        secret:
+          secretName: vertex-ai-key
+          items:
+          - key: key.json
+            path: key.json
+      - name: state-storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pattern-processor
+  labels:
+    app: pattern-processor
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: pattern-processor
