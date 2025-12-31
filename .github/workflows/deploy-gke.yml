@@ -98,7 +98,6 @@ jobs:
           kubectl apply -f k8s/api-gateway.yaml -n leetcode-mentor
           kubectl apply -f k8s/pattern-processor.yaml -n leetcode-mentor
           kubectl apply -f k8s/hint-generator.yaml -n leetcode-mentor
-          kubectl apply -f k8s/chat-service.yaml -n leetcode-mentor
           kubectl apply -f k8s/vertex-chat.yaml -n leetcode-mentor
 
       - name: Wait for deployments
@@ -106,7 +105,6 @@ jobs:
           kubectl rollout status deployment/api-gateway -n leetcode-mentor --timeout=5m
           kubectl rollout status deployment/pattern-processor -n leetcode-mentor --timeout=5m
           kubectl rollout status deployment/hint-generator -n leetcode-mentor --timeout=5m
-          kubectl rollout status deployment/chat-service -n leetcode-mentor --timeout=5m
           kubectl rollout status deployment/vertex-chat -n leetcode-mentor --timeout=5m
 
       - name: Get service endpoints
