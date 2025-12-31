@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  api-gateway:
+    container_name: leetcodementor_server
+    image: ghcr.io/devansh-ops/leetcode-mentor-api-gateway:latest
+    expose:
+      - "8000"
+    env_file:
+      - .env
+    volumes:
+      - ./vertex-ai-key.json:/app/vertex-ai-key.json:ro
+    restart: unless-stopped
+    networks:
+      - leetcode-mentor
+      - caddy_shared_net
+
+  hint-generator:
+    image: ghcr.io/devansh-ops/leetcode-mentor-hint-generator:latest
+    env_file:
+      - .env
+    volumes:
+      - ./vertex-ai-key.json:/app/vertex-ai-key.json:ro
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    networks:
+      - leetcode-mentor
+
+  pattern-processor:
+    image: ghcr.io/devansh-ops/leetcode-mentor-pattern-processor:latest
+    env_file:
+      - .env
+    volumes:
+      - ./vertex-ai-key.json:/app/vertex-ai-key.json:ro
+      - pattern-processor-state:/app/state
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    networks:
+      - leetcode-mentor
+
+  chat-service:
+    image: ghcr.io/devansh-ops/leetcode-mentor-chat-service:latest
+    ports:
+      - "8002:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - leetcode-mentor
+
+volumes:
+  pattern-processor-state:
+    driver: local
+
+networks:
+  leetcode-mentor:
+    driver: bridge
+  caddy_shared_net:
+    external: true
