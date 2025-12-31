@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: ghcr.io/devansh-ops/leetcode-mentor-api-gateway:latest
+        image: us-central1-docker.pkg.dev/leetcode-mentor-482308/leetcode-mentor/leetcode-mentor-api-gateway:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

@@ -1,0 +1,125 @@
+name: Build and Push to Artifact Registry
+
+on:
+  push:
+    branches: ["dev"]
+    paths:
+      - ".github/workflows/publish-images-artifact-registry.yml"
+      - "backend/shared/**"
+      - "backend/requirements.txt"
+      - "backend/services/api-gateway/**"
+      - "backend/services/chat-service/**"
+      - "backend/services/hint-generator/**"
+      - "backend/services/pattern-processor/**"
+      - "vertex-chat/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: leetcode-mentor-482308
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev/leetcode-mentor-482308/leetcode-mentor
+
+jobs:
+  build-and-push-backend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: leetcode-mentor-api-gateway
+            dockerfile: services/api-gateway/Dockerfile
+            context: ./backend
+          - image: leetcode-mentor-pattern-processor
+            dockerfile: services/pattern-processor/Dockerfile
+            context: ./backend
+          - image: leetcode-mentor-hint-generator
+            dockerfile: services/hint-generator/normal-pool/Dockerfile
+            context: ./backend
+          - image: leetcode-mentor-chat-service
+            dockerfile: services/chat-service/Dockerfile
+            context: ./backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-and-push-vertex-chat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push vertex-chat
+        uses: docker/build-push-action@v6
+        with:
+          context: ./vertex-chat
+          file: ./vertex-chat/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/leetcode-mentor-vertex-chat:latest
+            ${{ env.REGISTRY }}/leetcode-mentor-vertex-chat:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  summary:
+    needs: [build-and-push-backend, build-and-push-vertex-chat]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print summary
+        run: |
+          echo "✅ All images pushed to Artifact Registry"
+          echo ""
+          echo "Images available at:"
+          echo "  ${{ env.REGISTRY }}/leetcode-mentor-api-gateway:latest"
+          echo "  ${{ env.REGISTRY }}/leetcode-mentor-pattern-processor:latest"
+          echo "  ${{ env.REGISTRY }}/leetcode-mentor-hint-generator:latest"
+          echo "  ${{ env.REGISTRY }}/leetcode-mentor-chat-service:latest"
+          echo "  ${{ env.REGISTRY }}/leetcode-mentor-vertex-chat:latest"
+          echo ""
+          echo "🚀 Ready to deploy to Cloud Run or GKE!"

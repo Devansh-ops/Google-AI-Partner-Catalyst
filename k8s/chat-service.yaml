@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: chat-service
-        image: ghcr.io/devansh-ops/leetcode-mentor-chat-service:latest
+        image: us-central1-docker.pkg.dev/leetcode-mentor-482308/leetcode-mentor/leetcode-mentor-chat-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

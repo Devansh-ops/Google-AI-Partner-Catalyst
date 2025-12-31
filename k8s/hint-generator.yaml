@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: hint-generator
-        image: ghcr.io/devansh-ops/leetcode-mentor-hint-generator:latest
+        image: us-central1-docker.pkg.dev/leetcode-mentor-482308/leetcode-mentor/leetcode-mentor-hint-generator:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

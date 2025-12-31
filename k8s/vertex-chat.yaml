@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: vertex-chat
-        image: ghcr.io/devansh-ops/leetcode-mentor-vertex-chat:latest
+        image: us-central1-docker.pkg.dev/leetcode-mentor-482308/leetcode-mentor/leetcode-mentor-vertex-chat:latest
         ports:
         - containerPort: 8000
           name: http

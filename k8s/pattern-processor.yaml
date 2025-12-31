@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: pattern-processor
-        image: ghcr.io/devansh-ops/leetcode-mentor-pattern-processor:latest
+        image: us-central1-docker.pkg.dev/leetcode-mentor-482308/leetcode-mentor/leetcode-mentor-pattern-processor:latest
         imagePullPolicy: Always
         env:
         - name: GOOGLE_CLOUD_PROJECT
