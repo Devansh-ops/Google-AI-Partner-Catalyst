@@ -3,5 +3,8 @@
   "graphs": {
     "agent": "./agent.py:graph"
   },
-  "env": ".env"
+  "env": ".env",
+  "auth": {
+    "cors_allowed_origins": ["*"]
+  }
 }
