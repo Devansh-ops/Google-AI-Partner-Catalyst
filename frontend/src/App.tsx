@@ -319,7 +319,7 @@ function App() {
 
   const thread = useStream<{ messages: Message[] }>({
     // The URL where 'langgraph dev' is running
-    apiUrl: "http://localhost:2024",
+    apiUrl: "http://34.63.20.79",
     // The key in your langgraph.json
     assistantId: "agent",
     // The state key where messages are stored
