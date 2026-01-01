@@ -25,4 +25,4 @@ ENV PYTHONUNBUFFERED=1
 ENV GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/key.json
 
 # Run LangGraph server in dev mode without file watching
-CMD ["langgraph", "dev", "--no-reload", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["langgraph", "dev", "--no-reload", "--host", "0.0.0.0", "--port", "8000", "--cors-allow-origins", "*", "--cors-allow-methods", "*", "--cors-allow-headers", "*"]
