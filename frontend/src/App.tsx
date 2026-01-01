@@ -209,7 +209,7 @@ function App() {
 
 
     // Connect to WebSocket
-    const ws = new WebSocket(`wss://leetcodementor.devanshsehgal.com/ws/${sessionId}`);
+    const ws = new WebSocket(`wss://api-104-198-216-81.nip.io/ws/${sessionId}`);
 
     ws.onopen = () => {
       console.log('WebSocket connected');
@@ -318,8 +318,8 @@ function App() {
 
 
   const thread = useStream<{ messages: Message[] }>({
-    // The URL where 'langgraph dev' is running
-    apiUrl: "http://34.63.20.79",
+    // The URL where vertex-chat is deployed
+    apiUrl: "https://chat-104-198-216-81.nip.io",
     // The key in your langgraph.json
     assistantId: "agent",
     // The state key where messages are stored
